@@ -1,0 +1,4 @@
+1. Project 환경 설정
+    (1) Project folder 생성 : ex) SF-4
+    (2) Next.js project 생성 : npx create-next-app@latest .
+    
