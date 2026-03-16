@@ -1,0 +1,43 @@
+---
+description: Smartfarm Web Service(스마트팜 웹 서비스) 프로젝트 개발 규칙
+alwaysApply: true
+---
+
+# Smartfarm Web Service - 프로젝트 개발 규칙
+
+## 1. 프로젝트 특성
+
+- **Next.js 15 App Router** 기반의 웹 애플리케이션
+- **사용자 경험 최우선**: 로딩/빈상태/오류 상태 UI를 모두 제공하고, 상호작용 지연을 최소화한다.
+- **오류처리 절차**: 서버/클라이언트 모두 예외를 포착하고, 사용자에게는 한글로 친절한 메시지를 제공한다(개발 환경에서는 상세로그 출력).
+
+## 2. 기술 스택
+
+- Next.js 15 (App Router)
+- TypeScript (필수, strict 권장)
+- Tailwind CSS (스타일링)
+- Shadcn/ui (UI 컴포넌트)
+- Supabase (Auth/DB 등)
+- AI SDK (모델 연동)
+- ESLint (Next/TS 규칙 기반)
+
+## 3. 코딩 스타일
+
+- 함수형 컴포넌트를 기본으로 사용한다.
+- 모든 함수는 화살표 함수로 작성한다.
+- 컴포넌트 파일명은 파스칼 케이스로 저장한다 (예: `SensorDashboard.tsx`).
+- **한글 주석 필수**: 함수/컴포넌트 상단에 한 문장 개요를 한글로 작성하고, JSDoc도 한글로 기술한다.
+- ESLint 규칙을 준수한다.
+
+### 예시 (컴포넌트 + 화살표 함수 + 한글 JSDoc)
+
+```tsx
+/**
+ * 센서 대시보드 카드. 온도/습도 값을 표시한다.
+ * @param value - 표시할 센서 값
+ * @param unit - 단위 문자열 (예: '°C', '%')
+ */
+export const SensorDashboard = ({ value, unit }: { value: number; unit: string }) => (
+  <div className="rounded-lg border p-4">{value}{unit}</div>
+);
+```
