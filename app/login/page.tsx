@@ -52,6 +52,7 @@ const LoginPage: React.FC = () => {
     control,
     formState: { isSubmitting },
     register,
+    setValue,
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -59,6 +60,11 @@ const LoginPage: React.FC = () => {
       password: "",
     },
   })
+
+  React.useEffect(() => {
+    const email = searchParams.get("email")
+    if (email) setValue("email", email)
+  }, [searchParams, setValue])
 
   const onSubmit = async (values: LoginFormValues) => {
     setServerError(null)
@@ -85,7 +91,7 @@ const LoginPage: React.FC = () => {
 
       toast.success("로그인에 성공했습니다.")
 
-      const redirectTo = searchParams.get("redirectTo") ?? "/"
+      const redirectTo = searchParams.get("redirectTo") ?? "/dashboard"
       router.replace(redirectTo)
     } catch (e) {
       setServerError("로그인 중 알 수 없는 오류가 발생했습니다.")
@@ -156,9 +162,22 @@ const LoginPage: React.FC = () => {
           </form>
         </CardContent>
         <CardFooter>
-          <p className="text-xs text-muted-foreground">
-            문제가 계속된다면 관리자에게 문의해 주세요.
-          </p>
+          <div className="flex w-full flex-col items-center gap-2 text-xs text-muted-foreground">
+            <button
+              type="button"
+              className="underline"
+              onClick={() => router.push("/signup")}
+            >
+              아직 계정이 없으신가요? 회원가입 하러 가기
+            </button>
+            <button
+              type="button"
+              className="underline"
+              onClick={() => router.push("/forgot-password")}
+            >
+              비밀번호를 잊으셨나요? 비밀번호 재설정
+            </button>
+          </div>
         </CardFooter>
       </Card>
     </div>
