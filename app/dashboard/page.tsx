@@ -30,9 +30,14 @@ const DashboardPage: React.FC = () => {
         <p className="text-sm text-muted-foreground">
           단계 2.3: 농장 목록은 `/api/farms`에서 `user_id`로 필터해 조회합니다.
         </p>
-        <Button asChild>
-          <Link href="/dashboard/farms">농장 목록 보기</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="secondary">
+            <Link href="/dashboard/mqtt-test">MQTT 테스트 화면</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/dashboard/farms">농장 목록 보기</Link>
+          </Button>
+        </div>
       </div>
     </div>
   )

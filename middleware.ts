@@ -60,6 +60,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // 3) 로그인 상태에서 루트(/) 접근 → 대시보드로 리다이렉트
+  // (app/page.tsx는 placeholder만 있어서, 여기서 보내지 않으면 "불러오는 중"에 머무름)
+  if (session && pathname === "/") {
+    const url = req.nextUrl.clone()
+    url.pathname = "/dashboard"
+    return NextResponse.redirect(url)
+  }
+
   return res
 }
 
