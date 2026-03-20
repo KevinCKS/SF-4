@@ -1,7 +1,9 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 
 /**
  * 대시보드 메인 화면(임시).
@@ -23,6 +25,15 @@ const DashboardPage: React.FC = () => {
           <p>- MQTT(HiveMQ Cloud) 연결 및 토픽 구독/발행 연동</p>
         </CardContent>
       </Card>
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          단계 2.3: 농장 목록은 `/api/farms`에서 `user_id`로 필터해 조회합니다.
+        </p>
+        <Button asChild>
+          <Link href="/dashboard/farms">농장 목록 보기</Link>
+        </Button>
+      </div>
     </div>
   )
 }
