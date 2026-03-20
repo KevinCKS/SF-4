@@ -221,7 +221,7 @@ const MqttTestPage: React.FC = () => {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 bg-background px-4 py-10">
+    <div className="flex w-full flex-col gap-6 bg-background px-6 py-10">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">MQTT 테스트</h1>

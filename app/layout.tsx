@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes"
 import "./globals.css"
 
 import { AuthProvider } from "@/components/auth/AuthProvider"
+import { DashboardFarmProvider } from "@/components/dashboard/DashboardFarmContext"
 import { AppHeader } from "@/components/layout/AppHeader"
 import { Toaster } from "@/components/ui/sonner"
 
@@ -28,19 +29,21 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ko" suppressHydrationWarning>
+    <html lang="ko" className="dark" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen antialiased`}
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="dark"
+          enableSystem={false}
           disableTransitionOnChange
         >
           <AuthProvider>
-            <AppHeader />
-            {children}
+            <DashboardFarmProvider>
+              <AppHeader />
+              {children}
+            </DashboardFarmProvider>
           </AuthProvider>
           <Toaster richColors position="top-center" />
         </ThemeProvider>

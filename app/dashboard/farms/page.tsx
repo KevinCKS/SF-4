@@ -64,6 +64,62 @@ const DashboardFarmsPage: React.FC = () => {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
 
+  // 농장관리 화면 하단의 빈 영역을 “스마트팜 느낌”의 배경으로 채우기 위한 SVG 배경.
+  const bgSvg = React.useMemo(
+    () => `
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07131c"/>
+      <stop offset="0.55" stop-color="#08222a"/>
+      <stop offset="1" stop-color="#051018"/>
+    </linearGradient>
+    <linearGradient id="m" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#34d399" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#22c55e" stop-opacity="0.0"/>
+    </linearGradient>
+    <filter id="blur" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+  </defs>
+
+  <rect width="1400" height="900" fill="url(#g)"/>
+
+  <!-- 그라데이션 글로우 -->
+  <ellipse cx="220" cy="120" rx="340" ry="180" fill="#34d399" opacity="0.18" filter="url(#blur)"/>
+  <ellipse cx="1080" cy="280" rx="420" ry="220" fill="#22c55e" opacity="0.10" filter="url(#blur)"/>
+
+  <!-- 온실(프레임) 라인 -->
+  <g fill="none" stroke="#34d399" stroke-opacity="0.18" stroke-width="2">
+    <path d="M-50 820 C 200 600, 450 520, 700 540 C 980 565, 1200 650, 1450 850" />
+    <path d="M-50 760 C 210 560, 470 480, 730 505 C 990 530, 1200 610, 1450 800" />
+    <path d="M-50 700 C 210 520, 480 440, 760 465 C 1040 492, 1230 550, 1450 740" />
+  </g>
+
+  <!-- 식물 잎(단순 실루엣) -->
+  <g fill="#34d399" fill-opacity="0.16">
+    <path d="M170 700 C 190 640, 240 620, 260 660 C 230 650, 210 680, 170 700 Z"/>
+    <path d="M250 720 C 270 660, 320 640, 340 680 C 310 670, 290 700, 250 720 Z"/>
+    <path d="M1220 640 C 1240 590, 1288 570, 1310 610 C 1278 605, 1258 620, 1220 640 Z"/>
+    <path d="M1160 700 C 1180 645, 1230 625, 1250 670 C 1215 660, 1195 685, 1160 700 Z"/>
+  </g>
+
+  <!-- 민트 수평 스트라이프 -->
+  <g opacity="0.12">
+    <rect x="0" y="540" width="1400" height="6" fill="url(#m)"/>
+    <rect x="0" y="620" width="1400" height="4" fill="url(#m)"/>
+    <rect x="0" y="700" width="1400" height="5" fill="url(#m)"/>
+  </g>
+</svg>
+    `,
+    [],
+  )
+  const bgUrl = React.useMemo(() => {
+    // encodeURIComponent로 따옴표/특수문자 깨짐을 방지한다.
+    const encoded = encodeURIComponent(bgSvg)
+    return `url("data:image/svg+xml,${encoded}")`
+  }, [bgSvg])
+
   const fetchFarms = React.useCallback(async (options?: { initial?: boolean }) => {
     const isInitial = options?.initial ?? false
     if (isInitial) {
@@ -149,8 +205,19 @@ const DashboardFarmsPage: React.FC = () => {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 bg-background px-4 py-10">
-      <div className="flex items-center justify-between gap-4">
+    <div className="relative flex min-h-screen w-full flex-col gap-6 bg-background px-6 py-6 overflow-hidden">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-0"
+        style={{
+          backgroundImage: bgUrl,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          opacity: 0.18,
+        }}
+      />
+      <div className="relative z-10">
+        <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">농장 관리</h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -160,7 +227,7 @@ const DashboardFarmsPage: React.FC = () => {
         <Button variant="secondary" asChild>
           <Link href="/dashboard">대시보드로</Link>
         </Button>
-      </div>
+        </div>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
@@ -270,6 +337,7 @@ const DashboardFarmsPage: React.FC = () => {
             </form>
           </CardContent>
         </Card>
+      </div>
       </div>
     </div>
   )

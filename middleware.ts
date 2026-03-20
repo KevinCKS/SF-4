@@ -1,6 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 
+type CookieOptions = {
+  path?: string
+  domain?: string
+  maxAge?: number
+  expires?: Date
+  httpOnly?: boolean
+  secure?: boolean
+  sameSite?: "lax" | "strict" | "none"
+}
+
 /**
  * SSR 쿠키 기반 Supabase 세션을 사용하는 middleware.
  * - 미로그인 사용자가 보호 라우트에 접근하면 /login 으로 리다이렉트
@@ -17,10 +27,10 @@ export async function middleware(req: NextRequest) {
         get(name: string) {
           return req.cookies.get(name)?.value
         },
-        set(name: string, value: string, options: any) {
+        set(name: string, value: string, options: CookieOptions) {
           res.cookies.set({ name, value, ...options })
         },
-        remove(name: string, options: any) {
+        remove(name: string, options: CookieOptions) {
           res.cookies.set({ name, value: "", ...options, maxAge: 0 })
         },
       },

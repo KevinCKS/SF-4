@@ -1,0 +1,135 @@
+"use client"
+
+import * as React from "react"
+import Link from "next/link"
+import { usePathname, useRouter } from "next/navigation"
+import { Antenna, LayoutDashboard, Leaf, Warehouse } from "lucide-react"
+
+import { useAuth } from "@/components/auth/AuthProvider"
+import { DashboardFarmSelect } from "@/components/dashboard/DashboardFarmSelect"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { cn } from "@/lib/utils"
+
+/**
+ * 대시보드 좌측 사이드바. 네비·농장 선택·계정 메뉴를 둔다. (다크 민트 레이아웃)
+ */
+type NavItem = {
+  href: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { href: "/dashboard", label: "대시보드", icon: LayoutDashboard },
+  { href: "/dashboard/farms", label: "농장 관리", icon: Warehouse },
+  { href: "/dashboard/mqtt-test", label: "MQTT 테스트", icon: Antenna },
+]
+
+export const DashboardSidebar: React.FC = () => {
+  const pathname = usePathname()
+  const router = useRouter()
+  const { user, isLoading } = useAuth()
+
+  return (
+    <aside className="sticky top-0 z-30 flex h-screen w-64 shrink-0 flex-col border-r border-border/60 bg-sidebar/50 px-3 py-5 backdrop-blur supports-[backdrop-filter]:bg-sidebar/40">
+      <Link
+        href="/dashboard"
+        className="mb-8 flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors hover:bg-muted/30"
+      >
+        <Leaf className="size-7 shrink-0 text-primary" aria-hidden />
+        <div className="flex min-w-0 flex-col leading-tight">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Smartfarm
+          </span>
+          <span className="truncate text-lg font-semibold text-foreground">
+            Web Service
+          </span>
+        </div>
+      </Link>
+
+      <nav className="flex flex-1 flex-col gap-1" aria-label="대시보드 메뉴">
+        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+          const active =
+            href === "/dashboard"
+              ? pathname === "/dashboard"
+              : pathname.startsWith(href)
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "flex items-center gap-3 rounded-xl border-l-2 border-transparent px-3 py-2.5 text-sm font-medium transition-colors",
+                active
+                  ? "border-primary/70 bg-primary/10 text-primary shadow-[0_0_0_1px_rgba(16,185,129,0.15)]"
+                  : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+              )}
+            >
+              <Icon
+                className={cn(
+                  "size-[1.125rem] shrink-0 opacity-90",
+                  active && "text-primary",
+                )}
+              />
+              {label}
+            </Link>
+          )
+        })}
+      </nav>
+
+      <div className="mt-4 space-y-4 border-t border-sidebar-border pt-4">
+        <div className="px-0.5">
+          <p className="mb-2 px-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            농장
+          </p>
+          <div className="w-full [&_button]:border-sidebar-border/80">
+            <DashboardFarmSelect layout="sidebar" />
+          </div>
+        </div>
+
+        <div className="px-0.5">
+          {isLoading ? (
+            <p className="px-2 text-xs text-muted-foreground">인증 확인 중…</p>
+          ) : user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="h-auto w-full justify-start gap-2 rounded-xl border-sidebar-border bg-card/30 py-2.5 text-left text-xs backdrop-blur"
+                >
+                  <span className="truncate">{user.email ?? "계정"}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                side="top"
+                className="w-56"
+              >
+                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                  로그인 계정
+                </DropdownMenuLabel>
+                <DropdownMenuItem disabled className="text-xs">
+                  {user.email}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => router.push("/logout")}
+                >
+                  로그아웃
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+        </div>
+      </div>
+    </aside>
+  )
+}

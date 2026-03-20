@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 
 import { useAuth } from "@/components/auth/AuthProvider"
@@ -8,8 +9,8 @@ import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 
 /**
- * 상단 헤더.
- * 로그인 상태(이메일 표시)와 로그아웃, 로그인/회원가입 이동을 제공한다.
+ * 전역 상단 헤더(로그인·회원가입 등).
+ * `/dashboard` 는 사이드바만 사용하므로 헤더를 렌더하지 않는다.
  */
 export const AppHeader: React.FC = () => {
   const router = useRouter()
@@ -22,22 +23,32 @@ export const AppHeader: React.FC = () => {
     pathname === "/forgot-password" ||
     pathname === "/reset-password"
 
-  return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur">
-      <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4">
-        <button
-          type="button"
-          className="text-sm font-semibold tracking-tight"
-          onClick={() => router.push(user ? "/dashboard" : "/login")}
-        >
-          Smartfarm Web Service
-        </button>
+  const isDashboard = pathname.startsWith("/dashboard")
 
-        <div className="flex items-center gap-2">
+  const homeHref = user ? "/dashboard" : "/login"
+
+  /** 대시보드는 사이드바에 로고·메뉴·농장 선택이 있으므로 상단 헤더를 숨긴다. */
+  if (isDashboard) {
+    return null
+  }
+
+  return (
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/90 backdrop-blur-md">
+      <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-3 px-4">
+        <div className="shrink-0">
+          <Link
+            href={homeHref}
+            className="text-lg font-semibold tracking-tight text-foreground hover:underline sm:text-xl"
+          >
+            Smartfarm Web Service
+          </Link>
+        </div>
+
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           {isLoading ? (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Spinner />
-              <span>인증 확인 중...</span>
+              <span className="hidden sm:inline">인증 확인 중...</span>
             </div>
           ) : user ? (
             <>
@@ -66,4 +77,3 @@ export const AppHeader: React.FC = () => {
     </header>
   )
 }
-
