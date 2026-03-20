@@ -2,7 +2,7 @@ import mqtt, { type IClientOptions } from "mqtt"
 
 import { appendMqttLog, getMqttLogMeta } from "@/lib/mqtt/messageLog"
 import { getManagerState } from "@/lib/mqtt/runtimeState"
-import { MQTT_TOPICS, type MQTTTopic } from "@/lib/mqtt/topics"
+import { getDefaultMqttSubscribeTopics, isAllowedMqttTopic } from "@/lib/mqtt/topics"
 
 const getGlobalState = () => getManagerState()
 
@@ -20,16 +20,47 @@ const readEnv = () => {
  * - Next.js Route Handler(서버)에서만 사용한다.
  * - 브라우저 direct websocket 연결은 하지 않는다.
  */
-export const connectAndInit = async (): Promise<void> => {
+export const connectAndInit = async (subscribeTopics?: string[]): Promise<void> => {
   const state = getGlobalState()
 
+  const desiredTopics = subscribeTopics?.length
+    ? [...new Set(subscribeTopics.map((t) => t.trim()))]
+    : getDefaultMqttSubscribeTopics()
+
+  const allowedDesiredTopics = desiredTopics.filter(isAllowedMqttTopic)
+  if (allowedDesiredTopics.length === 0) {
+    throw new Error("구독할 토픽이 올바르지 않습니다.")
+  }
+
+  // 연결 생성/갱신 동안에도 onConnect에서 최신 값을 참조하도록 유지한다.
+  state.latestDesiredTopics = allowedDesiredTopics
+
+  // 이미 연결된 경우에는 “추가로 필요한 토픽만” subscribe 한다.
   if (state.client?.connected) {
+    const missing = allowedDesiredTopics.filter((t) => !state.subscribedTopics.includes(t))
+    if (missing.length === 0) return
+
+    state.isSubscribing = true
+    await Promise.all(
+      missing.map(
+        (topic) =>
+          new Promise<void>((subResolve, subReject) => {
+            state.client?.subscribe(topic, { qos: 1 }, (err) => {
+              if (err) subReject(err)
+              else subResolve()
+            })
+          }),
+      ),
+    )
+
+    state.subscribedTopics = [...new Set([...state.subscribedTopics, ...missing])]
+    state.isSubscribing = false
+    // eslint-disable-next-line no-console
+    console.log(`[MQTT] 추가 구독 완료: ${missing.length}개 토픽`)
     return
   }
 
-  if (state.connectingPromise) {
-    return state.connectingPromise
-  }
+  if (state.connectingPromise) return state.connectingPromise
 
   const { brokerUrl, username, password, clientId } = readEnv()
 
@@ -73,6 +104,11 @@ export const connectAndInit = async (): Promise<void> => {
         state.lastConnectError = null
 
         try {
+          const topicsToSubscribe =
+            state.latestDesiredTopics.length > 0
+              ? state.latestDesiredTopics
+              : getDefaultMqttSubscribeTopics()
+
           // 메시지 처리 등록
           client.on("message", (topic, payload) => {
             const t = topic.toString()
@@ -91,7 +127,7 @@ export const connectAndInit = async (): Promise<void> => {
 
           // 구독
           await Promise.all(
-            MQTT_TOPICS.map(
+            topicsToSubscribe.map(
               (topic) =>
                 new Promise<void>((subResolve, subReject) => {
                   client.subscribe(topic, { qos: 1 }, (err) => {
@@ -102,10 +138,11 @@ export const connectAndInit = async (): Promise<void> => {
             ),
           )
 
+          state.subscribedTopics = [...new Set([...state.subscribedTopics, ...topicsToSubscribe])]
           state.isSubscribing = false
           // eslint-disable-next-line no-console
           console.log(
-            `[MQTT] 구독 완료: ${MQTT_TOPICS.length}개 토픽 (수신 시 아래에 [MQTT] message 로그가 찍힙니다)`,
+            `[MQTT] 구독 완료: ${topicsToSubscribe.length}개 토픽 (수신 시 아래에 [MQTT] message 로그가 찍힙니다)`,
           )
           resolve()
         } catch (e) {
@@ -183,7 +220,7 @@ export const getMqttStatus = () => {
  * @param message 문자열 payload(JSON 문자열 권장)
  */
 export const publishMqtt = async (
-  topic: MQTTTopic,
+  topic: string,
   message: string,
 ): Promise<void> => {
   await connectAndInit()

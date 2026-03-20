@@ -4,9 +4,18 @@ import * as React from "react"
 import Link from "next/link"
 
 import { useDashboardFarm } from "@/components/dashboard/DashboardFarmContext"
+import { MqttTopicConfigurator } from "@/components/dashboard/MqttTopicConfigurator"
 import SensorArea from "@/components/dashboard/SensorArea"
 import { ActuatorArea } from "@/components/dashboard/ActuatorArea"
 import { Button } from "@/components/ui/button"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import {
   Card,
   CardContent,
@@ -21,6 +30,43 @@ import { Skeleton } from "@/components/ui/skeleton"
  */
 const DashboardPage: React.FC = () => {
   const { selectedFarm, isLoading, error, farms } = useDashboardFarm()
+  const [topicSheetWidth, setTopicSheetWidth] = React.useState(() => {
+    if (typeof window === "undefined") return 560
+    return Math.min(560, Math.max(360, Math.floor(window.innerWidth * 0.9)))
+  })
+
+  React.useEffect(() => {
+    const clamp = () => {
+      const max = Math.max(360, Math.floor(window.innerWidth * 0.9))
+      setTopicSheetWidth((w) => Math.min(Math.max(w, 360), max))
+    }
+    clamp()
+    window.addEventListener("resize", clamp)
+    return () => window.removeEventListener("resize", clamp)
+  }, [])
+
+  const startDragResize = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    const startX = e.clientX
+    const startWidth = topicSheetWidth
+
+    const onMove = (ev: PointerEvent) => {
+      const delta = startX - ev.clientX
+      const max = Math.max(360, Math.floor(window.innerWidth * 0.9))
+      const next = Math.min(Math.max(startWidth + delta, 360), max)
+      setTopicSheetWidth(next)
+    }
+
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove)
+      window.removeEventListener("pointerup", onUp)
+    }
+
+    window.addEventListener("pointermove", onMove)
+    window.addEventListener("pointerup", onUp, { once: true })
+  }
 
   return (
     <div className="w-full px-8 py-8">
@@ -42,6 +88,44 @@ const DashboardPage: React.FC = () => {
             등록된 농장이 없습니다. 농장을 먼저 추가해 주세요.
           </p>
         ) : null}
+      </div>
+
+      <div className="mt-6 flex justify-end">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="sm">
+              MQTT 토픽 설정
+            </Button>
+          </SheetTrigger>
+          <SheetContent
+            side="right"
+            className="pointer-events-auto z-[60]"
+            style={{
+              width: topicSheetWidth,
+              maxWidth: "90vw",
+              minWidth: 360,
+              right: 0,
+            }}
+          >
+            {/* 드래그로 Sheet 가로 폭을 조절한다. (오른쪽에서 열리므로 왼쪽 핸들 기준) */}
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="토픽 설정 패널 크기 조절"
+              className="absolute left-0 top-0 z-20 h-full w-2 cursor-col-resize"
+              onPointerDown={startDragResize}
+            />
+            <SheetHeader>
+              <SheetTitle>MQTT 토픽 설정</SheetTitle>
+              <SheetDescription>
+                아두이노가 하드코딩한 토픽 문자열을 입력하고 “토픽 적용”을 눌러 서버 구독을 갱신합니다.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="mt-4">
+              <MqttTopicConfigurator />
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">

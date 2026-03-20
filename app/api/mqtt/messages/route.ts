@@ -5,7 +5,8 @@ import {
   clearMqttLogs,
   getMqttLogs,
 } from "@/lib/mqtt/messageLog"
-import { MQTT_TOPICS } from "@/lib/mqtt/topics"
+import { getManagerState } from "@/lib/mqtt/runtimeState"
+import { DEFAULT_MQTT_TOPICS } from "@/lib/mqtt/topics"
 
 /**
  * MQTT 수신 로그 조회·초기화 API(테스트 UI 전용).
@@ -31,7 +32,10 @@ export async function GET() {
   try {
     return NextResponse.json(
       {
-        topics: [...MQTT_TOPICS],
+        topics:
+          getManagerState().subscribedTopics.length > 0
+            ? getManagerState().subscribedTopics
+            : [...DEFAULT_MQTT_TOPICS],
         messages: getMqttLogs(),
       },
       { headers: { "Cache-Control": "no-store, max-age=0" } },

@@ -8,9 +8,17 @@ import { Button } from "@/components/ui/button"
 import { CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { CardDescription, CardHeader, CardTitle, Card } from "@/components/ui/card"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Label } from "@/components/ui/label"
 
-import type { MQTTTopic } from "@/lib/mqtt/topics"
 import { cn } from "@/lib/utils"
+import { useMqttTopicConfig } from "@/components/dashboard/useMqttTopicConfig"
+import { useDashboardFarm } from "@/components/dashboard/DashboardFarmContext"
+import {
+  getSubscribeTopicsFromConfig,
+  MQTT_TOPIC_CONFIG_CHANGED_EVENT,
+} from "@/lib/mqtt/topicConfig"
 
 /**
  * 액추에이터 제어 영역. LED/Pump/FAN1/FAN2를 ON/OFF 명령으로 MQTT 발행한다.
@@ -21,34 +29,41 @@ export const ActuatorArea: React.FC = () => {
   type ActuatorDef = {
     key: ActuatorKey
     label: string
-    topic: MQTTTopic
-    unit?: string
+    topic: string
   }
 
-  const ACTUATORS: ActuatorDef[] = React.useMemo(
+  const { selectedFarmId } = useDashboardFarm()
+  const config = useMqttTopicConfig(selectedFarmId)
+
+  const ACTUATOR_META = React.useMemo(
     () => [
       {
         key: "led",
         label: "LED",
-        topic: "smartfarm/actuators/led",
       },
       {
         key: "pump",
         label: "Pump",
-        topic: "smartfarm/actuators/pump",
       },
       {
         key: "fan1",
         label: "FAN 1",
-        topic: "smartfarm/actuators/fan1",
       },
       {
         key: "fan2",
         label: "FAN 2",
-        topic: "smartfarm/actuators/fan2",
       },
-    ],
+    ] as const,
     [],
+  )
+
+  const ACTUATORS: ActuatorDef[] = React.useMemo(
+    () =>
+      ACTUATOR_META.map((m) => ({
+        ...m,
+        topic: config.actuators[m.key],
+      })),
+    [ACTUATOR_META, config.actuators],
   )
 
   const [sendingKey, setSendingKey] = React.useState<ActuatorKey | null>(null)
@@ -61,7 +76,81 @@ export const ActuatorArea: React.FC = () => {
     fan2: null,
   })
 
-  const publish = async (topic: MQTTTopic, message: string, key: ActuatorKey) => {
+  const [connected, setConnected] = React.useState(false)
+  const [envConfigured, setEnvConfigured] = React.useState<boolean | null>(null)
+  const [lastError, setLastError] = React.useState<string | null>(null)
+  const [isStatusLoading, setIsStatusLoading] = React.useState(true)
+  const [isConnecting, setIsConnecting] = React.useState(false)
+
+  const fetchStatus = React.useCallback(async () => {
+    setIsStatusLoading(true)
+    try {
+      const res = await fetch("/api/mqtt/status", {
+        credentials: "include",
+        cache: "no-store",
+      })
+      if (!res.ok) {
+        setConnected(false)
+        setLastError(await res.text().catch(() => "MQTT 상태 조회 실패"))
+        return
+      }
+      const data = (await res.json()) as {
+        connected?: boolean
+        envConfigured?: boolean
+        lastConnectError?: string | null
+        hint?: string
+      }
+      setConnected(Boolean(data.connected))
+      setEnvConfigured(typeof data.envConfigured === "boolean" ? data.envConfigured : null)
+      setLastError(data.lastConnectError ?? data.hint ?? null)
+    } catch (e) {
+      setConnected(false)
+      setLastError(e instanceof Error ? e.message : "MQTT 상태 조회 중 오류가 발생했습니다.")
+    } finally {
+      setIsStatusLoading(false)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    void fetchStatus()
+  }, [fetchStatus])
+
+  // 토픽 적용 시 서버 subscribe가 갱신되므로 연결 상태를 즉시 다시 확인한다.
+  React.useEffect(() => {
+    const onTopicConfigChange = () => {
+      void fetchStatus()
+    }
+    window.addEventListener(MQTT_TOPIC_CONFIG_CHANGED_EVENT, onTopicConfigChange)
+    return () =>
+      window.removeEventListener(MQTT_TOPIC_CONFIG_CHANGED_EVENT, onTopicConfigChange)
+  }, [fetchStatus])
+
+  const handleConnect = async () => {
+    setIsConnecting(true)
+    try {
+      setLastError(null)
+      const res = await fetch("/api/mqtt/connect", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topics: getSubscribeTopicsFromConfig(config) }),
+      })
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { details?: string }
+        setLastError(j.details ?? "MQTT 연결 실패")
+        return
+      }
+      await fetchStatus()
+    } finally {
+      setIsConnecting(false)
+    }
+  }
+
+  const publish = async (topic: string, message: string, key: ActuatorKey) => {
+    if (!connected) {
+      toast.error("먼저 MQTT에 연결해 주세요.")
+      return
+    }
     setSendingKey(key)
     try {
       const res = await fetch("/api/mqtt/publish", {
@@ -128,7 +217,7 @@ export const ActuatorArea: React.FC = () => {
           <div className="grid grid-cols-2 gap-2">
             <Button
               variant={isOn ? "default" : "outline"}
-              disabled={isSending}
+              disabled={isSending || !connected}
               onClick={() => void publish(a.topic, "on", a.key)}
               className={cn(
                 "h-10 rounded-xl px-2 text-xs font-semibold whitespace-nowrap transition-colors",
@@ -141,7 +230,7 @@ export const ActuatorArea: React.FC = () => {
             </Button>
             <Button
               variant={isOff ? "secondary" : "outline"}
-              disabled={isSending}
+              disabled={isSending || !connected}
               onClick={() => void publish(a.topic, "off", a.key)}
               className={cn(
                 "h-10 rounded-xl px-2 text-xs font-semibold whitespace-nowrap transition-colors",
@@ -160,10 +249,44 @@ export const ActuatorArea: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        아래 버튼을 누르면 서버가 MQTT로 제어 명령(문자열 <span className="font-mono">on/off</span>)을
-        발행합니다.
-      </p>
+      {isStatusLoading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-8 w-full" />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Skeleton className="h-[180px]" />
+            <Skeleton className="h-[180px]" />
+          </div>
+        </div>
+      ) : !connected ? (
+        <Alert>
+          <AlertTitle>MQTT 연결 필요</AlertTitle>
+          <AlertDescription>
+            {envConfigured === false
+              ? "환경 변수에 MQTT 브로커 정보가 설정되지 않았습니다."
+              : "MQTT에 연결한 뒤에만 액추에이터 제어 버튼을 사용할 수 있습니다."}
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <Button onClick={() => void handleConnect()} disabled={isConnecting}>
+                {isConnecting ? "연결 중…" : "브로커에 연결"}
+              </Button>
+              <Button variant="secondary" asChild>
+                <a href="/dashboard/mqtt-test">MQTT 테스트 화면</a>
+              </Button>
+            </div>
+            {lastError ? <p className="mt-3 text-sm text-destructive">{lastError}</p> : null}
+          </AlertDescription>
+        </Alert>
+      ) : lastError ? (
+        <Alert variant="destructive">
+          <AlertTitle>오류</AlertTitle>
+          <AlertDescription>{lastError}</AlertDescription>
+        </Alert>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          아래 버튼을 누르면 서버가 MQTT로 제어 명령(문자열{" "}
+          <span className="font-mono">on/off</span>)을 발행합니다.
+        </p>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2">{ACTUATORS.map(renderActuatorCard)}</div>
     </div>
   )

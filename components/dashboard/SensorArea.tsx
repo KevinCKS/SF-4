@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Label } from "@/components/ui/label"
+import { Skeleton } from "@/components/ui/skeleton"
 
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from "@/components/ui/chart"
 
@@ -17,6 +18,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+
+import { useMqttTopicConfig } from "@/components/dashboard/useMqttTopicConfig"
+import { getSubscribeTopicsFromConfig, MQTT_TOPIC_CONFIG_CHANGED_EVENT } from "@/lib/mqtt/topicConfig"
+import { useDashboardFarm } from "@/components/dashboard/DashboardFarmContext"
 
 /**
  * 센서 영역. 온도/습도/EC/pH의 현재 게이지와 최근 시계열(라인 차트)을 표시한다.
@@ -34,11 +39,13 @@ const SensorArea: React.FC = () => {
     max: number
   }
 
-  const SENSOR_DEFS: SensorDef[] = React.useMemo(
+  const { selectedFarmId } = useDashboardFarm()
+  const config = useMqttTopicConfig(selectedFarmId)
+
+  const SENSOR_META = React.useMemo(
     () => [
       {
         key: "temperature",
-        topic: "smartfarm/sensors/temperature",
         label: "온도",
         unit: "°C",
         color: "rgb(52, 211, 153)",
@@ -47,7 +54,6 @@ const SensorArea: React.FC = () => {
       },
       {
         key: "humidity",
-        topic: "smartfarm/sensors/humidity",
         label: "습도",
         unit: "%",
         color: "rgb(34, 197, 94)",
@@ -56,7 +62,6 @@ const SensorArea: React.FC = () => {
       },
       {
         key: "ec",
-        topic: "smartfarm/sensors/ec",
         label: "EC",
         unit: "mS/cm",
         color: "rgb(16, 185, 129)",
@@ -65,15 +70,23 @@ const SensorArea: React.FC = () => {
       },
       {
         key: "ph",
-        topic: "smartfarm/sensors/ph",
         label: "pH",
         unit: "",
         color: "rgb(45, 212, 191)",
         min: 0,
         max: 14,
       },
-    ],
+    ] as const,
     [],
+  )
+
+  const SENSOR_DEFS: SensorDef[] = React.useMemo(
+    () =>
+      SENSOR_META.map((m) => ({
+        ...m,
+        topic: config.sensors[m.key],
+      })),
+    [SENSOR_META, config.sensors],
   )
 
   type MqttMessageLog = {
@@ -127,6 +140,8 @@ const SensorArea: React.FC = () => {
   const [envConfigured, setEnvConfigured] = React.useState<boolean | null>(null)
   const [lastError, setLastError] = React.useState<string | null>(null)
   const [isConnecting, setIsConnecting] = React.useState(false)
+  const [isStatusLoading, setIsStatusLoading] = React.useState(true)
+  const [isMessagesLoading, setIsMessagesLoading] = React.useState(false)
 
   const [latestValues, setLatestValues] = React.useState<
     Record<SensorKey, number | null>
@@ -149,82 +164,113 @@ const SensorArea: React.FC = () => {
   const [minutesToShow, setMinutesToShow] = React.useState<number>(10)
 
   const fetchStatus = React.useCallback(async () => {
-    const res = await fetch("/api/mqtt/status", { credentials: "include", cache: "no-store" })
-    if (!res.ok) {
+    setIsStatusLoading(true)
+    try {
+      const res = await fetch("/api/mqtt/status", {
+        credentials: "include",
+        cache: "no-store",
+      })
+      if (!res.ok) {
+        setConnected(false)
+        setLastError(await res.text().catch(() => "MQTT 상태 조회 실패"))
+        return
+      }
+      const data = (await res.json()) as {
+        connected?: boolean
+        envConfigured?: boolean
+        lastConnectError?: string | null
+        hint?: string
+      }
+      setConnected(Boolean(data.connected))
+      setEnvConfigured(typeof data.envConfigured === "boolean" ? data.envConfigured : null)
+      setLastError(data.lastConnectError ?? data.hint ?? null)
+    } catch (e) {
       setConnected(false)
-      setLastError(await res.text().catch(() => "상태 조회 실패"))
-      return
+      setLastError(e instanceof Error ? e.message : "MQTT 상태 조회 중 오류가 발생했습니다.")
+    } finally {
+      setIsStatusLoading(false)
     }
-    const data = (await res.json()) as {
-      connected?: boolean
-      envConfigured?: boolean
-      lastConnectError?: string | null
-      hint?: string
-    }
-    setConnected(Boolean(data.connected))
-    setEnvConfigured(typeof data.envConfigured === "boolean" ? data.envConfigured : null)
-    setLastError(data.lastConnectError ?? data.hint ?? null)
   }, [])
 
   const fetchMessages = React.useCallback(async () => {
-    const res = await fetch("/api/mqtt/messages", {
-      credentials: "include",
-      cache: "no-store",
-    })
-    if (!res.ok) return
-    const data = (await res.json()) as { messages?: MqttMessageLog[] }
-    const raw = Array.isArray(data.messages) ? data.messages : []
+    setIsMessagesLoading(true)
+    setLastError(null)
+    try {
+      const res = await fetch("/api/mqtt/messages", {
+        credentials: "include",
+        cache: "no-store",
+      })
+      if (!res.ok) {
+        setLastError(await res.text().catch(() => "MQTT 수신 로그 조회 실패"))
+        return
+      }
+      const data = (await res.json()) as { messages?: MqttMessageLog[] }
+      const raw = Array.isArray(data.messages) ? data.messages : []
 
-    const nextSeries: Record<SensorKey, Point[]> = {
-      temperature: [],
-      humidity: [],
-      ec: [],
-      ph: [],
+      const nextSeries: Record<SensorKey, Point[]> = {
+        temperature: [],
+        humidity: [],
+        ec: [],
+        ph: [],
+      }
+
+      const nextLatest: Record<SensorKey, number | null> = {
+        temperature: null,
+        humidity: null,
+        ec: null,
+        ph: null,
+      }
+
+      const topicToKey = new Map<string, SensorKey>()
+      for (const s of SENSOR_DEFS) topicToKey.set(s.topic, s.key)
+
+      for (const msg of raw) {
+        const key = topicToKey.get(msg.topic)
+        if (!key) continue
+        const value = parseNumericValue(msg.payload)
+        if (value === null) continue
+        const ts = toTs(msg.receivedAt)
+        if (ts === null) continue
+        nextSeries[key].push({ ts, value })
+      }
+
+      // ts 기준 정렬 후 최근 N개로 제한
+      const nowTs = Date.now()
+      const windowStartTs = nowTs - minutesToShow * 60_000
+
+      for (const key of Object.keys(nextSeries) as SensorKey[]) {
+        let pts = nextSeries[key]
+        pts.sort((a, b) => a.ts - b.ts)
+
+        // 1) 시간 기준 필터
+        pts = pts.filter((p) => p.ts >= windowStartTs)
+        // 2) 포인트 개수 제한
+        pts = pts.slice(-pointsToShow)
+
+        nextSeries[key] = pts
+        nextLatest[key] = pts.length > 0 ? pts[pts.length - 1]?.value ?? null : null
+      }
+
+      setSeries(nextSeries)
+      setLatestValues(nextLatest)
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : "MQTT 수신 처리 중 오류가 발생했습니다.")
+    } finally {
+      setIsMessagesLoading(false)
     }
-
-    const nextLatest: Record<SensorKey, number | null> = {
-      temperature: null,
-      humidity: null,
-      ec: null,
-      ph: null,
-    }
-
-    const topicToKey = new Map<string, SensorKey>()
-    for (const s of SENSOR_DEFS) topicToKey.set(s.topic, s.key)
-
-    for (const msg of raw) {
-      const key = topicToKey.get(msg.topic)
-      if (!key) continue
-      const value = parseNumericValue(msg.payload)
-      if (value === null) continue
-      const ts = toTs(msg.receivedAt)
-      if (ts === null) continue
-      nextSeries[key].push({ ts, value })
-    }
-
-    // ts 기준 정렬 후 최근 N개로 제한
-    const nowTs = Date.now()
-    const windowStartTs = nowTs - minutesToShow * 60_000
-
-    for (const key of Object.keys(nextSeries) as SensorKey[]) {
-      let pts = nextSeries[key]
-      pts.sort((a, b) => a.ts - b.ts)
-
-      // 1) 시간 기준 필터
-      pts = pts.filter((p) => p.ts >= windowStartTs)
-      // 2) 포인트 개수 제한
-      pts = pts.slice(-pointsToShow)
-
-      nextSeries[key] = pts
-      nextLatest[key] = pts.length > 0 ? pts[pts.length - 1]?.value ?? null : null
-    }
-
-    setSeries(nextSeries)
-    setLatestValues(nextLatest)
   }, [SENSOR_DEFS, minutesToShow, pointsToShow])
 
   React.useEffect(() => {
     void fetchStatus()
+  }, [fetchStatus])
+
+  // 토픽 설정을 적용하면 서버 subscribe가 갱신되므로, 연결 상태를 즉시 다시 조회한다.
+  React.useEffect(() => {
+    const onTopicConfigChange = () => {
+      void fetchStatus()
+    }
+    window.addEventListener(MQTT_TOPIC_CONFIG_CHANGED_EVENT, onTopicConfigChange)
+    return () => window.removeEventListener(MQTT_TOPIC_CONFIG_CHANGED_EVENT, onTopicConfigChange)
   }, [fetchStatus])
 
   React.useEffect(() => {
@@ -246,11 +292,12 @@ const SensorArea: React.FC = () => {
   const handleConnect = async () => {
     setIsConnecting(true)
     try {
+      setLastError(null)
       const res = await fetch("/api/mqtt/connect", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: "{}",
+        body: JSON.stringify({ topics: getSubscribeTopicsFromConfig(config) }),
       })
       if (!res.ok) {
         const j = (await res.json().catch(() => ({}))) as { details?: string }
@@ -301,6 +348,108 @@ const SensorArea: React.FC = () => {
     const points = [...series[s.key]].sort((a, b) => a.ts - b.ts)
     const data = points.map((p) => ({ ts: p.ts, value: p.value }))
 
+    /**
+     * 현재값(마지막 포인트)에만 삼각형 화살표를 렌더한다.
+     * 시각적 “입체감”을 위해 한 겹 더 아래로 어두운 폴리곤을 겹친다.
+     */
+    const CurrentValueTriangleDot = (props: {
+      cx?: number
+      cy?: number
+      index?: number
+      value?: number
+    }) => {
+      const { cx, cy, index } = props
+      if (typeof cx !== "number" || typeof cy !== "number" || typeof index !== "number") {
+        return <g />
+      }
+      if (index !== data.length - 1) return <g />
+
+      // (cx, cy)를 기준으로 위로 향하는 삼각형(화살표)을 그린다.
+      // 좌표계 특성상 y가 아래로 증가하므로 cy-쪽이 “위”가 된다.
+      const w = 12 // 가로 폭(전체 크기 축소)
+      const h = 16 // 높이(전체 크기 축소)
+      const x1 = cx - w / 2
+      const x2 = cx + w / 2
+      // 아래쪽(메인 삼각형)의 베이스를 살짝 줄여 “아래 삼각형”을 더 작게 느끼도록 한다.
+      const yBase = cy + 8
+      const yTop = cy - h
+
+      // 입체감:
+      // - 그림자를 2~3겹(깊은 그림자 + 중간 그림자 + 얕은 글로우)
+      // - 테두리(링)로 “두드러짐”
+      // - 위쪽 하이라이트로 “현대적인 광택” 느낌
+      const deepShadowOffset = 2.3
+      const midShadowOffset = 1.2
+      const glowOffset = 0.8
+
+      const deepShadowTop = yTop + deepShadowOffset
+      const deepShadowBase = yBase + deepShadowOffset
+      const midShadowTop = yTop + midShadowOffset
+      const midShadowBase = yBase + midShadowOffset
+      const glowTop = yTop + glowOffset
+      const glowBase = yBase + glowOffset
+
+      // 외곽 “링” (살짝 더 크게)
+      const ringW = w * 1.04
+      const ringH = h * 0.95
+      const ringX1 = cx - ringW / 2
+      const ringX2 = cx + ringW / 2
+      const ringYBase = yBase + 0.5
+      const ringYTop = yTop - (ringH - h) / 2
+
+      // 하이라이트(위쪽 광택)
+      // 위쪽(하이라이트) 삼각형을 “조금 더 크게”
+      const hiW = w * 0.60
+      const hiH = h * 0.40
+      const hiX1 = cx - hiW / 2
+      const hiX2 = cx + hiW / 2
+      const hiYBase = yTop + hiH * 0.88
+      const hiYTop = yTop - hiH * 0.18
+
+      return (
+        <g>
+          <polygon
+            key="deep-shadow"
+            points={`${x1},${deepShadowBase} ${x2},${deepShadowBase} ${cx},${deepShadowTop}`}
+            fill="rgba(0,0,0,0.40)"
+          />
+          <polygon
+            key="mid-shadow"
+            points={`${x1},${midShadowBase} ${x2},${midShadowBase} ${cx},${midShadowTop}`}
+            fill="rgba(0,0,0,0.22)"
+          />
+          {/* 살짝 아래에 깔린 글로우 레이어 */}
+          <polygon
+            key="glow"
+            points={`${x1},${glowBase} ${x2},${glowBase} ${cx},${glowTop}`}
+            fill="rgba(255,255,255,0.12)"
+          />
+
+          {/* 외곽 링 */}
+          <polygon
+            key="ring"
+            points={`${ringX1},${ringYBase} ${ringX2},${ringYBase} ${cx},${ringYTop}`}
+            fill="rgba(0,0,0,0)"
+            stroke="rgba(255,255,255,0.55)"
+            strokeWidth={1.0}
+          />
+
+          <polygon
+            key="main"
+            points={`${x1},${yBase} ${x2},${yBase} ${cx},${yTop}`}
+            fill={s.color}
+            stroke="rgba(255,255,255,0.55)"
+            strokeWidth={1.2}
+          />
+          <polygon
+            key="highlight"
+            points={`${hiX1},${hiYBase} ${hiX2},${hiYBase} ${cx},${hiYTop}`}
+            fill="rgba(255,255,255,0.38)"
+          />
+        </g>
+      )
+    }
+
     return (
       <ChartContainer
         key={s.key}
@@ -326,7 +475,14 @@ const SensorArea: React.FC = () => {
           <ChartTooltip
             content={<ChartTooltipContent indicator="dot" hideLabel />}
           />
-          <Line dataKey="value" type="monotone" stroke={s.color} strokeWidth={2} dot={false} />
+          <Line
+            dataKey="value"
+            type="monotone"
+            stroke={s.color}
+            strokeWidth={2}
+            dot={CurrentValueTriangleDot}
+            activeDot={false}
+          />
         </LineChart>
       </ChartContainer>
     )
@@ -334,7 +490,17 @@ const SensorArea: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {!connected ? (
+      {isStatusLoading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-10 w-full" />
+          <div className="grid gap-4 md:grid-cols-2">
+            <Skeleton className="h-[140px]" />
+            <Skeleton className="h-[140px]" />
+          </div>
+        </div>
+      ) : null}
+
+      {!isStatusLoading && !connected ? (
         <Alert>
           <AlertTitle>MQTT 연결 필요</AlertTitle>
           <AlertDescription>
@@ -349,10 +515,37 @@ const SensorArea: React.FC = () => {
                 <a href="/dashboard/mqtt-test">MQTT 테스트 화면</a>
               </Button>
             </div>
-            {lastError ? (
-              <p className="mt-3 text-sm text-destructive">{lastError}</p>
-            ) : null}
+            {lastError ? <p className="mt-3 text-sm text-destructive">{lastError}</p> : null}
           </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {connected && !isMessagesLoading && !lastError ? (
+        (() => {
+          const hasAnyData = Object.values(series).some((pts) => pts.length > 0)
+          if (!hasAnyData) {
+            return (
+              <Alert>
+                <AlertTitle>데이터 없음</AlertTitle>
+                <AlertDescription>
+                  아직 MQTT에서 센서 데이터를 수신하지 못했습니다.
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <Button variant="secondary" asChild>
+                      <a href="/dashboard/mqtt-test">MQTT 테스트 화면</a>
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )
+          }
+          return null
+        })()
+      ) : null}
+
+      {connected && lastError && !isStatusLoading ? (
+        <Alert variant="destructive">
+          <AlertTitle>오류</AlertTitle>
+          <AlertDescription>{lastError}</AlertDescription>
         </Alert>
       ) : null}
 

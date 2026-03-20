@@ -12,15 +12,19 @@ import { connectAndInit, getMqttStatus } from "@/lib/mqtt/serverMqttClient"
 export const dynamic = "force-dynamic"
 
 const ConnectBodySchema = z.object({
-  // 현재는 옵션을 받지 않지만, 추후 farm_id 기반 토픽 확장에 대비해 두었다.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  options: z.unknown().optional(),
+  topics: z.array(z.string()).optional(),
 })
 
 export async function POST(request: Request) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _body = await request.json().catch(() => ({}))
-  ConnectBodySchema.parse(_body)
+  const parsed = ConnectBodySchema.safeParse(_body)
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "요청이 올바르지 않습니다.", details: parsed.error.flatten() },
+      { status: 400 },
+    )
+  }
 
   const supabase = await createSupabaseServerClient()
   const {
@@ -36,7 +40,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    await connectAndInit()
+    const topics = parsed.data.topics
+    await connectAndInit(topics)
     const status = getMqttStatus()
     return NextResponse.json({ success: true, ...status })
   } catch (e) {

@@ -30,8 +30,14 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "대시보드", icon: LayoutDashboard },
   { href: "/dashboard/farms", label: "농장 관리", icon: Warehouse },
-  { href: "/dashboard/mqtt-test", label: "MQTT 테스트", icon: Antenna },
 ]
+
+// MQTT 테스트는 개발/디버깅 단계에서만 노출한다.
+// (배포 환경에서는 사이드바 메뉴에서 숨김)
+const isDev = process.env.NODE_ENV !== "production"
+const DEV_ONLY_NAV_ITEMS: NavItem[] = isDev
+  ? [{ href: "/dashboard/mqtt-test", label: "MQTT 테스트", icon: Antenna }]
+  : []
 
 export const DashboardSidebar: React.FC = () => {
   const pathname = usePathname()
@@ -56,11 +62,9 @@ export const DashboardSidebar: React.FC = () => {
       </Link>
 
       <nav className="flex flex-1 flex-col gap-1" aria-label="대시보드 메뉴">
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+        {[...NAV_ITEMS, ...DEV_ONLY_NAV_ITEMS].map(({ href, label, icon: Icon }) => {
           const active =
-            href === "/dashboard"
-              ? pathname === "/dashboard"
-              : pathname.startsWith(href)
+            href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href)
           return (
             <Link
               key={href}

@@ -21,6 +21,15 @@ export type MQTTManagerState = {
   isConnected: boolean
   isSubscribing: boolean
   lastConnectError: string | null
+  /**
+   * 가장 최근 connect 요청에서 프론트가 의도한 구독 대상 토픽 목록.
+   * 연결이 갱신/생성되는 동안에도 유지되어 onConnect에서 사용된다.
+   */
+  latestDesiredTopics: string[]
+  /**
+   * 실제로 서버가 이미 subscribe 해 둔 토픽 목록(되도록 union).
+   */
+  subscribedTopics: string[]
 }
 
 export type SmartfarmMqttRuntime = {
@@ -47,6 +56,8 @@ export const getMqttRuntime = (): SmartfarmMqttRuntime => {
         isConnected: false,
         isSubscribing: false,
         lastConnectError: null,
+        latestDesiredTopics: [],
+        subscribedTopics: [],
       },
       receivedMessages: [],
     }

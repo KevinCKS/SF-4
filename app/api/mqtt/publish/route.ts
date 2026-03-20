@@ -6,7 +6,7 @@ import {
   getMqttStatus,
   publishMqtt,
 } from "@/lib/mqtt/serverMqttClient"
-import { MQTT_TOPICS } from "@/lib/mqtt/topics"
+import { isAllowedMqttTopic } from "@/lib/mqtt/topics"
 
 /**
  * MQTT 발행 프록시 API.
@@ -15,7 +15,10 @@ import { MQTT_TOPICS } from "@/lib/mqtt/topics"
 export const dynamic = "force-dynamic"
 
 const publishBodySchema = z.object({
-  topic: z.enum(MQTT_TOPICS),
+  topic: z
+    .string()
+    .min(1, "topic은 빈 값일 수 없습니다.")
+    .refine(isAllowedMqttTopic, "허용되지 않은 토픽입니다. (smartfarm/ prefix만 허용)"),
   message: z.string().min(1, "message는 빈 값일 수 없습니다."),
 })
 

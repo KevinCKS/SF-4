@@ -47,10 +47,12 @@ if (!brokerUrl || !username || !password) {
 }
 
 const topics = {
-  temperature: "smartfarm/sensors/temperature",
-  humidity: "smartfarm/sensors/humidity",
-  ec: "smartfarm/sensors/ec",
-  ph: "smartfarm/sensors/ph",
+  // 대시보드(UI)에서 설정한 토픽과 동일하게 맞춘다.
+  temperature: "smartfarm/class11/sensor/temperature",
+  humidity: "smartfarm/class11/sensor/humidity",
+  ec: "smartfarm/class11/sensor/ec",
+  // UI에서 pH 항목이 /h 로 들어가 있던 것으로 보여서 동일하게 맞춘다.
+  ph: "smartfarm/class11/sensor/ph",
 }
 
 // 동일 브로커에 다른 클라이언트가 이미 같은 clientId를 쓰면 연결이 밀릴 수 있음.
