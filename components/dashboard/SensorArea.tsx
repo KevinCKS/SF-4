@@ -20,8 +20,9 @@ import {
 } from "@/components/ui/select"
 
 import { useMqttTopicConfig } from "@/components/dashboard/useMqttTopicConfig"
-import { getSubscribeTopicsFromConfig, MQTT_TOPIC_CONFIG_CHANGED_EVENT } from "@/lib/mqtt/topicConfig"
+import { getSubscribeTopicsFromConfig } from "@/lib/mqtt/topicConfig"
 import { useDashboardFarm } from "@/components/dashboard/DashboardFarmContext"
+import { useMqttConnection } from "@/components/dashboard/useMqttConnection"
 
 /**
  * 센서 영역. 온도/습도/EC/pH의 현재 게이지와 최근 시계열(라인 차트)을 표시한다.
@@ -136,11 +137,15 @@ const SensorArea: React.FC = () => {
     return Number.isFinite(t) ? t : null
   }
 
-  const [connected, setConnected] = React.useState(false)
-  const [envConfigured, setEnvConfigured] = React.useState<boolean | null>(null)
-  const [lastError, setLastError] = React.useState<string | null>(null)
-  const [isConnecting, setIsConnecting] = React.useState(false)
-  const [isStatusLoading, setIsStatusLoading] = React.useState(true)
+  const {
+    connected,
+    envConfigured,
+    lastError,
+    setLastError,
+    isStatusLoading,
+    isConnecting,
+    connect,
+  } = useMqttConnection()
   const [isMessagesLoading, setIsMessagesLoading] = React.useState(false)
 
   const [latestValues, setLatestValues] = React.useState<
@@ -163,34 +168,7 @@ const SensorArea: React.FC = () => {
   const [pointsToShow, setPointsToShow] = React.useState<number>(80)
   const [minutesToShow, setMinutesToShow] = React.useState<number>(10)
 
-  const fetchStatus = React.useCallback(async () => {
-    setIsStatusLoading(true)
-    try {
-      const res = await fetch("/api/mqtt/status", {
-        credentials: "include",
-        cache: "no-store",
-      })
-      if (!res.ok) {
-        setConnected(false)
-        setLastError(await res.text().catch(() => "MQTT 상태 조회 실패"))
-        return
-      }
-      const data = (await res.json()) as {
-        connected?: boolean
-        envConfigured?: boolean
-        lastConnectError?: string | null
-        hint?: string
-      }
-      setConnected(Boolean(data.connected))
-      setEnvConfigured(typeof data.envConfigured === "boolean" ? data.envConfigured : null)
-      setLastError(data.lastConnectError ?? data.hint ?? null)
-    } catch (e) {
-      setConnected(false)
-      setLastError(e instanceof Error ? e.message : "MQTT 상태 조회 중 오류가 발생했습니다.")
-    } finally {
-      setIsStatusLoading(false)
-    }
-  }, [])
+  // 상태 조회/연결은 useMqttConnection 훅에서 공통 처리한다.
 
   const fetchMessages = React.useCallback(async () => {
     setIsMessagesLoading(true)
@@ -260,18 +238,7 @@ const SensorArea: React.FC = () => {
     }
   }, [SENSOR_DEFS, minutesToShow, pointsToShow])
 
-  React.useEffect(() => {
-    void fetchStatus()
-  }, [fetchStatus])
-
-  // 토픽 설정을 적용하면 서버 subscribe가 갱신되므로, 연결 상태를 즉시 다시 조회한다.
-  React.useEffect(() => {
-    const onTopicConfigChange = () => {
-      void fetchStatus()
-    }
-    window.addEventListener(MQTT_TOPIC_CONFIG_CHANGED_EVENT, onTopicConfigChange)
-    return () => window.removeEventListener(MQTT_TOPIC_CONFIG_CHANGED_EVENT, onTopicConfigChange)
-  }, [fetchStatus])
+  // 토픽 설정 변경 시 상태 갱신은 useMqttConnection 훅에서 자동 처리한다.
 
   React.useEffect(() => {
     if (!connected) return
@@ -290,25 +257,9 @@ const SensorArea: React.FC = () => {
   }, [pointsToShow, minutesToShow, connected, fetchMessages])
 
   const handleConnect = async () => {
-    setIsConnecting(true)
-    try {
-      setLastError(null)
-      const res = await fetch("/api/mqtt/connect", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topics: getSubscribeTopicsFromConfig(config) }),
-      })
-      if (!res.ok) {
-        const j = (await res.json().catch(() => ({}))) as { details?: string }
-        setLastError(j.details ?? "MQTT 연결 실패")
-        return
-      }
-      await fetchStatus()
-      await fetchMessages()
-    } finally {
-      setIsConnecting(false)
-    }
+    const ok = await connect(getSubscribeTopicsFromConfig(config))
+    if (!ok) return
+    await fetchMessages()
   }
 
   const renderGaugeCard = (s: SensorDef) => {

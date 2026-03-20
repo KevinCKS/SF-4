@@ -17,8 +17,8 @@ import { useMqttTopicConfig } from "@/components/dashboard/useMqttTopicConfig"
 import { useDashboardFarm } from "@/components/dashboard/DashboardFarmContext"
 import {
   getSubscribeTopicsFromConfig,
-  MQTT_TOPIC_CONFIG_CHANGED_EVENT,
 } from "@/lib/mqtt/topicConfig"
+import { useMqttConnection } from "@/components/dashboard/useMqttConnection"
 
 /**
  * 액추에이터 제어 영역. LED/Pump/FAN1/FAN2를 ON/OFF 명령으로 MQTT 발행한다.
@@ -76,74 +76,17 @@ export const ActuatorArea: React.FC = () => {
     fan2: null,
   })
 
-  const [connected, setConnected] = React.useState(false)
-  const [envConfigured, setEnvConfigured] = React.useState<boolean | null>(null)
-  const [lastError, setLastError] = React.useState<string | null>(null)
-  const [isStatusLoading, setIsStatusLoading] = React.useState(true)
-  const [isConnecting, setIsConnecting] = React.useState(false)
-
-  const fetchStatus = React.useCallback(async () => {
-    setIsStatusLoading(true)
-    try {
-      const res = await fetch("/api/mqtt/status", {
-        credentials: "include",
-        cache: "no-store",
-      })
-      if (!res.ok) {
-        setConnected(false)
-        setLastError(await res.text().catch(() => "MQTT 상태 조회 실패"))
-        return
-      }
-      const data = (await res.json()) as {
-        connected?: boolean
-        envConfigured?: boolean
-        lastConnectError?: string | null
-        hint?: string
-      }
-      setConnected(Boolean(data.connected))
-      setEnvConfigured(typeof data.envConfigured === "boolean" ? data.envConfigured : null)
-      setLastError(data.lastConnectError ?? data.hint ?? null)
-    } catch (e) {
-      setConnected(false)
-      setLastError(e instanceof Error ? e.message : "MQTT 상태 조회 중 오류가 발생했습니다.")
-    } finally {
-      setIsStatusLoading(false)
-    }
-  }, [])
-
-  React.useEffect(() => {
-    void fetchStatus()
-  }, [fetchStatus])
-
-  // 토픽 적용 시 서버 subscribe가 갱신되므로 연결 상태를 즉시 다시 확인한다.
-  React.useEffect(() => {
-    const onTopicConfigChange = () => {
-      void fetchStatus()
-    }
-    window.addEventListener(MQTT_TOPIC_CONFIG_CHANGED_EVENT, onTopicConfigChange)
-    return () =>
-      window.removeEventListener(MQTT_TOPIC_CONFIG_CHANGED_EVENT, onTopicConfigChange)
-  }, [fetchStatus])
+  const {
+    connected,
+    envConfigured,
+    lastError,
+    isStatusLoading,
+    isConnecting,
+    connect,
+  } = useMqttConnection()
 
   const handleConnect = async () => {
-    setIsConnecting(true)
-    try {
-      setLastError(null)
-      const res = await fetch("/api/mqtt/connect", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topics: getSubscribeTopicsFromConfig(config) }),
-      })
-      if (!res.ok) {
-        const j = (await res.json().catch(() => ({}))) as { details?: string }
-        setLastError(j.details ?? "MQTT 연결 실패")
-        return
-      }
-      await fetchStatus()
-    } finally {
-      setIsConnecting(false)
-    }
+    await connect(getSubscribeTopicsFromConfig(config))
   }
 
   const publish = async (topic: string, message: string, key: ActuatorKey) => {
