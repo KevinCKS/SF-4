@@ -79,14 +79,17 @@ export const DashboardFarmSelect: React.FC<DashboardFarmSelectProps> = ({
       >
         <SelectTrigger
           className={cn(
-            "h-11 w-full min-w-[10rem] rounded-xl border border-sidebar-border/80 bg-card/40 px-3 text-lg shadow-sm shadow-primary/5 backdrop-blur",
+            "h-11 w-full min-w-[10rem] rounded-xl border border-sidebar-border/80 bg-card/40 px-3 shadow-sm shadow-primary/5 backdrop-blur",
+            layout === "sidebar" ? "text-[0.9rem]" : "text-lg",
             layout === "header" &&
               "min-w-[10rem] max-w-xs sm:max-w-sm bg-card/50 text-xl",
           )}
         >
           <SelectValue placeholder="농장을 선택하세요" />
         </SelectTrigger>
-        <SelectContent className="text-lg">
+        <SelectContent
+          className={layout === "sidebar" ? "text-[0.9rem]" : "text-lg"}
+        >
           {farms.map((f) => (
             <SelectItem key={f.id} value={f.id}>
               <span className="truncate">{f.name}</span>

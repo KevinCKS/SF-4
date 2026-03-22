@@ -216,7 +216,7 @@ const DashboardPage: React.FC = () => {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Card className="bg-card/70 backdrop-blur">
+        <Card className="border-border/80 bg-card/90 shadow-lg shadow-black/25 ring-1 ring-white/10 backdrop-blur-md">
           <CardHeader>
             <CardTitle className="text-2xl">센서</CardTitle>
           </CardHeader>
@@ -225,7 +225,7 @@ const DashboardPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="bg-card/70 backdrop-blur">
+        <Card className="border-border/80 bg-card/90 shadow-lg shadow-black/25 ring-1 ring-white/10 backdrop-blur-md">
           <CardHeader>
             <CardTitle className="text-2xl">액추에이터</CardTitle>
           </CardHeader>
@@ -236,14 +236,25 @@ const DashboardPage: React.FC = () => {
       </div>
 
       <div className="mt-6 flex flex-col gap-2 border-t border-border/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-lg text-muted-foreground">
+        {/* text-lg(1.125rem) 대비 0.7배 ≈ 0.7875rem */}
+        <p className="text-[0.7875rem] text-muted-foreground">
           개발·검증용 링크 (헤더 메뉴에서도 이동 가능)
         </p>
         <div className="flex flex-wrap gap-2">
-          <Button asChild variant="secondary" size="default" className="text-lg">
+          <Button
+            asChild
+            variant="secondary"
+            size="default"
+            className="text-[0.7875rem]"
+          >
             <Link href="/dashboard/mqtt-test">MQTT 테스트</Link>
           </Button>
-          <Button asChild variant="outline" size="default" className="text-lg">
+          <Button
+            asChild
+            variant="outline"
+            size="default"
+            className="text-[0.7875rem]"
+          >
             <Link href="/dashboard/farms">농장 관리</Link>
           </Button>
         </div>

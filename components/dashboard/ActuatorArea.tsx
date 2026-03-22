@@ -132,7 +132,10 @@ export const ActuatorArea: React.FC = () => {
     const isOff = s === "off"
 
     return (
-      <Card key={a.key} className="border-border/60 bg-card/60 backdrop-blur">
+      <Card
+        key={a.key}
+        className="border-border/80 bg-card/85 shadow-md shadow-black/25 ring-1 ring-white/10 backdrop-blur-md"
+      >
         <CardHeader className="px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div>

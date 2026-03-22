@@ -22,6 +22,7 @@ import {
 import { useMqttTopicConfig } from "@/components/dashboard/useMqttTopicConfig"
 import { useDashboardFarm } from "@/components/dashboard/DashboardFarmContext"
 import { useMqttConnection } from "@/components/dashboard/useMqttConnection"
+import { cn } from "@/lib/utils"
 
 /**
  * 센서 영역. 온도/습도/EC/pH의 현재 게이지와 최근 시계열(라인 차트)을 표시한다.
@@ -263,6 +264,12 @@ const SensorArea: React.FC = () => {
     void fetchMessages({ silent: true })
   }, [pointsToShow, minutesToShow, connected, fetchMessages])
 
+  /**
+   * 게이지 카드에 표시할 측정값 문자열(소수 둘째 자리 고정).
+   */
+  const formatGaugeValueText = (v: number | null, unit: string): string =>
+    v === null ? "--" : `${v.toFixed(2)}${unit}`
+
   const renderGaugeCard = (s: SensorDef) => {
     const value = latestValues[s.key]
     const showValue = value ?? null
@@ -275,22 +282,45 @@ const SensorArea: React.FC = () => {
     return (
       <div
         key={s.key}
-        className="rounded-xl border border-border/60 bg-card/50 p-4 backdrop-blur"
+        className="rounded-xl border border-border/80 bg-card/85 p-4 shadow-md shadow-black/25 ring-1 ring-white/10 backdrop-blur-md"
       >
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
-            <p className="mt-1 text-lg font-semibold text-foreground">
-              {showValue === null ? "--" : `${showValue}${s.unit}`}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-[10px] text-muted-foreground">범위 {s.min}~{s.max}</p>
-          </div>
+        {/* 첫 줄: 라벨 + 범위(위쪽) — 큰 측정값과 겹침 방지 */}
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
+          <p className="shrink-0 pt-0.5 text-[10px] leading-none text-muted-foreground">
+            범위 {s.min}~{s.max}
+          </p>
         </div>
+        {/* 측정값: 그라데이션 입체감. 기준 1.6875rem의 0.9배 → 1.51875rem */}
+            <p
+              className={cn(
+                "mt-1 text-[1.51875rem] font-bold tabular-nums tracking-tight leading-none",
+            showValue === null && "font-semibold text-muted-foreground",
+          )}
+          style={
+            showValue !== null
+              ? {
+                  backgroundImage: `linear-gradient(180deg, #f0fdf4 0%, ${s.color} 48%, color-mix(in srgb, ${s.color} 70%, #020617) 100%)`,
+                  WebkitBackgroundClip: "text",
+                  backgroundClip: "text",
+                  color: "transparent",
+                  WebkitTextFillColor: "transparent",
+                }
+              : undefined
+          }
+        >
+          {formatGaugeValueText(showValue, s.unit)}
+        </p>
         <div className="mt-3">
           <Progress value={percent} aria-label={`${s.label} 게이지`} className="h-2" />
         </div>
+        {/* MQTT 토픽 설정과 동일한 수신 토픽 문자열 */}
+        <p className="mt-2.5 text-[10px] leading-snug text-muted-foreground">
+          토픽:{" "}
+          <span className="break-all font-mono text-[10px] text-muted-foreground/90">
+            {s.topic}
+          </span>
+        </p>
       </div>
     )
   }
@@ -364,13 +394,16 @@ const SensorArea: React.FC = () => {
     }
 
     return (
-      <ChartContainer
+      <div
         key={s.key}
-        id={`sensor-${s.key}`}
-        config={{ value: { label: `${s.label}`, color: s.color } }}
-        className="h-[180px] text-xs [&_.recharts-cartesian-axis-tick_text]:text-[12px]"
+        className="rounded-xl border border-border/80 bg-card/85 p-3 shadow-md shadow-black/25 ring-1 ring-white/10 backdrop-blur-md"
       >
-        <LineChart data={data} margin={{ left: 0, right: 0, top: 10, bottom: 0 }}>
+        <ChartContainer
+          id={`sensor-${s.key}`}
+          config={{ value: { label: `${s.label}`, color: s.color } }}
+          className="h-[180px] text-xs [&_.recharts-cartesian-axis-tick_text]:text-[12px]"
+        >
+          <LineChart data={data} margin={{ left: 0, right: 0, top: 10, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis
             dataKey="ts"
@@ -404,8 +437,9 @@ const SensorArea: React.FC = () => {
             dot={CurrentValueTriangleDot}
             activeDot={false}
           />
-        </LineChart>
-      </ChartContainer>
+          </LineChart>
+        </ChartContainer>
+      </div>
     )
   }
 

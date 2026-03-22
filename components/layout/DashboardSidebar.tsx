@@ -52,10 +52,10 @@ export const DashboardSidebar: React.FC = () => {
       >
         <Leaf className="size-9 shrink-0 text-primary" aria-hidden />
         <div className="flex min-w-0 flex-col leading-tight">
-          <span className="text-base font-medium uppercase tracking-wider text-muted-foreground">
+          <span className="text-[0.8rem] font-medium uppercase tracking-wider text-muted-foreground">
             Smartfarm
           </span>
-          <span className="truncate text-3xl font-semibold text-foreground">
+          <span className="truncate text-2xl font-semibold text-foreground">
             Web Service
           </span>
         </div>
@@ -63,7 +63,7 @@ export const DashboardSidebar: React.FC = () => {
 
       {/* 농장 선택: 하단 중복을 없애고 좌측 상단(로고 바로 아래)에만 둔다. */}
       <div className="mb-6 space-y-2 px-0.5">
-        <p className="px-2 text-lg font-semibold tracking-tight text-foreground/85">
+        <p className="px-2 text-[0.9rem] font-semibold tracking-tight text-foreground/85">
           현재 농장
         </p>
         <div className="w-full [&_button]:border-sidebar-border/80">
@@ -80,7 +80,7 @@ export const DashboardSidebar: React.FC = () => {
               key={href}
               href={href}
               className={cn(
-                "flex items-center gap-3 rounded-xl border-l-2 border-transparent px-3 py-3 text-xl font-medium transition-colors",
+                "flex items-center gap-3 rounded-xl border-l-2 border-transparent px-3 py-3 text-base font-medium transition-colors",
                 active
                   ? "border-primary/70 bg-primary/10 text-primary shadow-[0_0_0_1px_rgba(16,185,129,0.15)]"
                   : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
@@ -101,13 +101,13 @@ export const DashboardSidebar: React.FC = () => {
       <div className="mt-4 space-y-4 border-t border-sidebar-border pt-4">
         <div className="px-0.5">
           {isLoading ? (
-            <p className="px-2 text-lg text-muted-foreground">인증 확인 중…</p>
+            <p className="px-2 text-[0.9rem] text-muted-foreground">인증 확인 중…</p>
           ) : user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="h-auto w-full justify-start gap-2 rounded-xl border-sidebar-border bg-card/30 py-3 text-left text-lg backdrop-blur"
+                  className="h-auto w-full justify-start gap-2 rounded-xl border-sidebar-border bg-card/30 py-3 text-left text-[0.9rem] backdrop-blur"
                 >
                   <span className="truncate">{user.email ?? "계정"}</span>
                 </Button>
@@ -115,18 +115,18 @@ export const DashboardSidebar: React.FC = () => {
               <DropdownMenuContent
                 align="start"
                 side="top"
-                className="w-64 text-lg"
+                className="w-64 text-[0.9rem]"
               >
-                <DropdownMenuLabel className="text-lg font-normal text-muted-foreground">
+                <DropdownMenuLabel className="text-[0.9rem] font-normal text-muted-foreground">
                   로그인 계정
                 </DropdownMenuLabel>
-                <DropdownMenuItem disabled className="text-lg">
+                <DropdownMenuItem disabled className="text-[0.9rem]">
                   {user.email}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   variant="destructive"
-                  className="text-lg"
+                  className="text-[0.9rem]"
                   onClick={() => router.push("/logout")}
                 >
                   로그아웃
