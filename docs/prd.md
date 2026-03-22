@@ -112,7 +112,7 @@
 
 | 구분 | 기술 |
 |------|------|
-| 프레임워크 | Next.js 15 (App Router) |
+| 프레임워크 | Next.js (App Router) — 저장소는 16.x (`package.json` 기준) |
 | 언어 | TypeScript (strict 권장) |
 | 스타일링 | Tailwind CSS |
 | UI 컴포넌트 | Shadcn/ui |

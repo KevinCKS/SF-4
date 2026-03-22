@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
-import { createSupabaseServerClient } from "@/lib/supabaseServer"
+import {
+  isRequireUserSuccess,
+  requireUser,
+  toInternalErrorResponse,
+} from "@/lib/api/server"
 import { farmUpsertBodySchema } from "@/lib/validators/farm"
 import type { Farm, UpdateFarmInput } from "@/types/farm"
 
@@ -33,18 +37,11 @@ export const GET = async (_request: Request, context: RouteContext) => {
   const id = parsed.data
 
   try {
-    const supabase = await createSupabaseServerClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "인증이 필요합니다. 다시 로그인해 주세요." },
-        { status: 401 },
-      )
+    const auth = await requireUser()
+    if (!isRequireUserSuccess(auth)) {
+      return auth.response
     }
+    const { supabase } = auth
 
     const { data, error } = await supabase
       .from("farms")
@@ -71,9 +68,7 @@ export const GET = async (_request: Request, context: RouteContext) => {
 
     return NextResponse.json({ farm: data as Farm })
   } catch (e) {
-    const message =
-      e instanceof Error ? e.message : "요청 처리 중 오류가 발생했습니다."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return toInternalErrorResponse(e)
   }
 }
 
@@ -115,18 +110,11 @@ export const PATCH = async (request: Request, context: RouteContext) => {
   const input = parsed.data as UpdateFarmInput
 
   try {
-    const supabase = await createSupabaseServerClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "인증이 필요합니다. 다시 로그인해 주세요." },
-        { status: 401 },
-      )
+    const auth = await requireUser()
+    if (!isRequireUserSuccess(auth)) {
+      return auth.response
     }
+    const { supabase } = auth
 
     const { data, error } = await supabase
       .from("farms")
@@ -159,9 +147,7 @@ export const PATCH = async (request: Request, context: RouteContext) => {
 
     return NextResponse.json({ farm: data as Farm })
   } catch (e) {
-    const message =
-      e instanceof Error ? e.message : "요청 처리 중 오류가 발생했습니다."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return toInternalErrorResponse(e)
   }
 }
 
@@ -186,18 +172,11 @@ export const DELETE = async (_request: Request, context: RouteContext) => {
   const id = idParsed.data
 
   try {
-    const supabase = await createSupabaseServerClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "인증이 필요합니다. 다시 로그인해 주세요." },
-        { status: 401 },
-      )
+    const auth = await requireUser()
+    if (!isRequireUserSuccess(auth)) {
+      return auth.response
     }
+    const { supabase } = auth
 
     const { data, error } = await supabase
       .from("farms")
@@ -228,8 +207,6 @@ export const DELETE = async (_request: Request, context: RouteContext) => {
 
     return NextResponse.json({ farm: data as Farm })
   } catch (e) {
-    const message =
-      e instanceof Error ? e.message : "요청 처리 중 오류가 발생했습니다."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return toInternalErrorResponse(e)
   }
 }

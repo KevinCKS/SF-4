@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
-import { createSupabaseServerClient } from "@/lib/supabaseServer"
+import { isRequireUserSuccess, requireUser } from "@/lib/api/server"
 import { connectAndInit, getMqttStatus } from "@/lib/mqtt/serverMqttClient"
 
 /**
@@ -16,9 +16,8 @@ const ConnectBodySchema = z.object({
 })
 
 export async function POST(request: Request) {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _body = await request.json().catch(() => ({}))
-  const parsed = ConnectBodySchema.safeParse(_body)
+  const body = await request.json().catch(() => ({}))
+  const parsed = ConnectBodySchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json(
       { error: "요청이 올바르지 않습니다.", details: parsed.error.flatten() },
@@ -26,17 +25,9 @@ export async function POST(request: Request) {
     )
   }
 
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
-
-  if (error || !user) {
-    return NextResponse.json(
-      { error: "인증이 필요합니다. 다시 로그인해 주세요." },
-      { status: 401 },
-    )
+  const auth = await requireUser()
+  if (!isRequireUserSuccess(auth)) {
+    return auth.response
   }
 
   try {

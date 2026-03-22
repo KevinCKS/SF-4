@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 
-import { createSupabaseServerClient } from "@/lib/supabaseServer"
+import { isRequireUserSuccess, requireUser } from "@/lib/api/server"
 import { getMqttStatus } from "@/lib/mqtt/serverMqttClient"
 
 /**
@@ -10,17 +10,9 @@ import { getMqttStatus } from "@/lib/mqtt/serverMqttClient"
 export const dynamic = "force-dynamic"
 
 export async function GET() {
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
-
-  if (error || !user) {
-    return NextResponse.json(
-      { error: "인증이 필요합니다. 다시 로그인해 주세요." },
-      { status: 401 },
-    )
+  const auth = await requireUser()
+  if (!isRequireUserSuccess(auth)) {
+    return auth.response
   }
 
   try {

@@ -8,7 +8,7 @@
 
 | 단계 | 내용 | 산출물 |
 |------|------|--------|
-| **0** | 프로젝트 기반 점검 | Next.js 15, TS, Tailwind, Shadcn/ui, Supabase 클라이언트 |
+| **0** | 프로젝트 기반 점검 | Next.js(App Router) 16.x, TS, Tailwind, Shadcn/ui, Supabase 클라이언트 |
 | **1** | Supabase 설정 및 인증 | profiles, Auth, 로그인/회원가입/비밀번호 재설정 |
 | **2** | 농장/구역 CRUD | farms 테이블, 목록·상세·추가·수정·삭제 |
 | **3** | MQTT 연동 기반 | HiveMQ Cloud, 토픽 규칙, 구독/발행 유틸 |
@@ -22,7 +22,7 @@
 
 ## 단계 0: 프로젝트 기반 점검
 
-- [ ] **0.1** Next.js 15 (App Router) 프로젝트 확인. 필요 시 생성 또는 업그레이드
+- [ ] **0.1** Next.js (App Router) 프로젝트 확인. `package.json`의 Next 버전과 일치하는지 점검 (현재 저장소는 16.x 기준)
 - [ ] **0.2** TypeScript strict 설정 확인 (`tsconfig.json`)
 - [ ] **0.3** Tailwind CSS 설정 확인
 - [ ] **0.4** Shadcn/ui 설치 및 필요한 컴포넌트 추가 (Button, Card, Input, Form 등)
@@ -160,6 +160,22 @@
 - [ ] **8.6** 배포 URL에서 로그인·대시보드 등 핵심 흐름 동작 확인
 
 **완료 기준**: main(또는 설정 브랜치) 푸시 시 Vercel에서 자동 빌드·배포되고, 프로덕션 환경에서 서비스 동작 확인 가능
+
+---
+
+## 리팩터링 기록 (API Route Handler 공통화)
+
+> Route Handler에서 반복되던 **Supabase 세션 검증**과 **500 응답 포맷**을 한곳으로 모은다.
+
+| 항목 | 설명 |
+|------|------|
+| **위치** | `lib/api/server.ts` |
+| **`requireUser()`** | `createSupabaseServerClient()` + `getUser()` 후 미인증이면 `401` JSON(`UNAUTHORIZED_JSON_MESSAGE`) |
+| **`isRequireUserSuccess()`** | 결과 타입 가드로 `supabase`/`user` 사용 가능 여부 판별 |
+| **`toInternalErrorResponse()`** | `catch` 블록에서 공통 500 JSON |
+| **적용 파일** | `app/api/farms/route.ts`, `app/api/farms/[id]/route.ts`, `app/api/mqtt/*/route.ts` |
+
+**추가 리팩터링 후보(선택)**: 인증 페이지(로그인·회원가입 등) 폼/에러 처리 공통화, `lib/supabaseClient.ts` 환경 변수 누락 시 사용자 안내 UI.
 
 ---
 
