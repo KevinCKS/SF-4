@@ -4,6 +4,7 @@ import * as React from "react"
 import type { Session, User } from "@supabase/supabase-js"
 
 import { supabase } from "@/lib/supabaseClient"
+import { isBenignAuthStorageError } from "@/lib/supabaseAuthStorageErrors"
 
 type AuthState = {
   isLoading: boolean
@@ -45,7 +46,10 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
       } catch (e) {
         if (!isMounted) return
         setState({ isLoading: false, session: null, user: null })
-        if (process.env.NODE_ENV === "development") {
+        if (
+          process.env.NODE_ENV === "development" &&
+          !isBenignAuthStorageError(e)
+        ) {
           // eslint-disable-next-line no-console
           console.error("Auth 세션 초기화 오류:", e)
         }

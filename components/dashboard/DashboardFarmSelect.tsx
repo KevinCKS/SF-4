@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
+import { Warehouse } from "lucide-react"
 
 type DashboardFarmSelectProps = {
   /** 사이드바에서는 전체 너비 사용 */
@@ -79,12 +80,13 @@ export const DashboardFarmSelect: React.FC<DashboardFarmSelectProps> = ({
       >
         <SelectTrigger
           className={cn(
-            "h-11 w-full min-w-[10rem] rounded-xl border border-sidebar-border/80 bg-card/40 px-3 shadow-sm shadow-primary/5 backdrop-blur",
+            "h-11 w-full min-w-[10rem] gap-2 rounded-xl border border-sidebar-border/80 bg-card/40 px-3 shadow-sm shadow-primary/5 backdrop-blur",
             layout === "sidebar" ? "text-[0.9rem]" : "text-lg",
             layout === "header" &&
               "min-w-[10rem] max-w-xs sm:max-w-sm bg-card/50 text-xl",
           )}
         >
+          <Warehouse className="size-4 shrink-0 opacity-75" aria-hidden />
           <SelectValue placeholder="농장을 선택하세요" />
         </SelectTrigger>
         <SelectContent

@@ -49,10 +49,9 @@ export async function middleware(req: NextRequest) {
     pathname === "/forgot-password" ||
     pathname === "/reset-password"
 
+  // /logout 은 세션 없이도 접근 가능해야 한다(이미 로그아웃된 경우·리다이렉트 처리).
   const isProtected =
-    pathname.startsWith("/dashboard") ||
-    pathname === "/" ||
-    pathname === "/logout"
+    pathname.startsWith("/dashboard") || pathname === "/"
 
   // 1) 보호 라우트에 미로그인 접근 → 로그인 페이지로 리다이렉트
   if (!session && isProtected) {

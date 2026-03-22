@@ -10,6 +10,7 @@ import { MqttTopicConfigurator } from "@/components/dashboard/MqttTopicConfigura
 import { mqttTopicPillButtonClassName } from "@/components/dashboard/mqttTopicPillButtonClass"
 import SensorArea from "@/components/dashboard/SensorArea"
 import { ActuatorArea } from "@/components/dashboard/ActuatorArea"
+import { ClearSensorReadingsButton } from "@/components/dashboard/ClearSensorReadingsButton"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -30,6 +31,15 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { getMqttTopicConfig, getSubscribeTopicsFromConfig } from "@/lib/mqtt/topicConfig"
 import { isAllowedMqttTopic } from "@/lib/mqtt/topics"
 import { cn } from "@/lib/utils"
+import {
+  Antenna,
+  Cpu,
+  FlaskConical,
+  LayoutDashboard,
+  Settings2,
+  Warehouse,
+  Zap,
+} from "lucide-react"
 
 /**
  * 대시보드 메인: 센서 영역과 액추에이터 영역 레이아웃.
@@ -95,7 +105,13 @@ const DashboardPage: React.FC = () => {
     if (connected) {
       const ok = await disconnect()
       if (ok) toast.success("MQTT 연결을 끊었습니다.")
-      else toast.error("MQTT 연결 해제에 실패했습니다.")
+      else {
+        toast.error("MQTT 연결 해제에 실패했습니다.", {
+          description:
+            "센서 카드 위쪽 알림 문구를 확인하거나, 복사가 필요하면 F12 콘솔·네트워크 탭에서 응답을 확인해 주세요.",
+          duration: 12_000,
+        })
+      }
       return
     }
     if (envConfigured === false) {
@@ -116,26 +132,25 @@ const DashboardPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full px-8 py-8">
+    <div className="w-full px-6 py-5 md:px-10 md:py-6">
       <div className="flex flex-col gap-2">
-        <h1 className="text-4xl font-semibold tracking-tight">대시보드</h1>
-        <p className="text-lg leading-relaxed text-muted-foreground">
-          선택한 농장의 센서와 액추에이터를 한 화면에서 확인합니다.
-        </p>
-        {error ? (
-          <p className="text-xl text-destructive">{error}</p>
-        ) : isLoading && farms.length === 0 ? (
-          <Skeleton className="h-6 w-72" />
-        ) : farms.length === 0 ? (
-          <p className="text-xl text-muted-foreground">
-            등록된 농장이 없습니다. 농장을 먼저 추가해 주세요.
-          </p>
-        ) : null}
-      </div>
-
-      <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-        {/* MQTT 연결 상태 배지: 클릭 시 연결/연결 해제(별도 버튼 없음) */}
-        <div className="flex min-h-10 items-center">
+        {/* 제목·부제와 MQTT 컨트롤을 한 덩어리로: xl에서 한 줄로 올려 세로 공간 확보 */}
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between xl:gap-6">
+          <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-baseline lg:gap-6">
+            <h1 className="flex shrink-0 items-center gap-3 text-4xl font-semibold tracking-tight">
+              <LayoutDashboard
+                className="size-9 shrink-0 text-primary"
+                aria-hidden
+              />
+              대시보드
+            </h1>
+            <p className="min-w-0 flex-1 text-lg leading-snug text-muted-foreground lg:pt-1">
+              선택한 농장의 센서와 액추에이터를 한 화면에서 확인합니다.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-3 xl:max-w-xl xl:shrink-0 xl:pt-1">
+            {/* MQTT 연결 상태 배지: 클릭 시 연결/연결 해제(별도 버튼 없음) */}
+            <div className="flex min-h-10 items-center">
           {isStatusLoading ? (
             <Skeleton className="h-9 min-w-[12rem] rounded-full" />
           ) : (
@@ -176,11 +191,15 @@ const DashboardPage: React.FC = () => {
                   : "MQTT Disconnected"}
             </button>
           )}
-        </div>
+            </div>
 
-        <Sheet open={topicSheetOpen} onOpenChange={setTopicSheetOpen}>
-          <SheetTrigger asChild>
-            <Button type="button" className={cn(mqttTopicPillButtonClassName)}>
+            <Sheet open={topicSheetOpen} onOpenChange={setTopicSheetOpen}>
+            <SheetTrigger asChild>
+            <Button
+              type="button"
+              className={cn(mqttTopicPillButtonClassName, "gap-2")}
+            >
+              <Settings2 className="size-4 shrink-0" aria-hidden />
               MQTT 토픽 설정
             </Button>
           </SheetTrigger>
@@ -203,7 +222,10 @@ const DashboardPage: React.FC = () => {
               onPointerDown={startDragResize}
             />
             <SheetHeader>
-              <SheetTitle className="text-2xl">MQTT 토픽 설정</SheetTitle>
+              <SheetTitle className="flex items-center gap-2 text-2xl">
+                <Settings2 className="size-6 shrink-0 text-primary" aria-hidden />
+                MQTT 토픽 설정
+              </SheetTitle>
               <SheetDescription className="text-lg leading-relaxed">
                 토픽을 입력한 뒤 “브로커 연결 및 토픽 구독”으로 연결과 구독을 한 번에 적용합니다.
               </SheetDescription>
@@ -212,32 +234,51 @@ const DashboardPage: React.FC = () => {
               <MqttTopicConfigurator />
             </div>
           </SheetContent>
-        </Sheet>
+            </Sheet>
+          </div>
+        </div>
+        {error ? (
+          <p className="text-xl text-destructive">{error}</p>
+        ) : isLoading && farms.length === 0 ? (
+          <Skeleton className="h-6 w-72" />
+        ) : farms.length === 0 ? (
+          <p className="text-xl text-muted-foreground">
+            등록된 농장이 없습니다. 농장을 먼저 추가해 주세요.
+          </p>
+        ) : null}
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      <div className="mt-6 grid gap-6 lg:grid-cols-2 lg:gap-8 xl:gap-10">
         <Card className="border-border/80 bg-card/90 shadow-lg shadow-black/25 ring-1 ring-white/10 backdrop-blur-md">
-          <CardHeader>
-            <CardTitle className="text-2xl">센서</CardTitle>
+          <CardHeader className="pb-3 pt-4">
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <Cpu className="size-7 shrink-0 text-primary" aria-hidden />
+              센서
+            </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-5 pt-0 sm:px-6">
             <SensorArea />
           </CardContent>
         </Card>
 
         <Card className="border-border/80 bg-card/90 shadow-lg shadow-black/25 ring-1 ring-white/10 backdrop-blur-md">
-          <CardHeader>
-            <CardTitle className="text-2xl">액추에이터</CardTitle>
+          <CardHeader className="pb-3 pt-4">
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <Zap className="size-7 shrink-0 text-primary" aria-hidden />
+              액추에이터
+            </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-5 pt-0 sm:px-6">
             <ActuatorArea />
           </CardContent>
         </Card>
       </div>
 
-      <div className="mt-6 flex flex-col gap-2 border-t border-border/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
+      {/* 첫 화면에선 카드 위주로 보이도록 아래로 충분히 밀어 스크롤 후 노출 */}
+      <div className="mt-20 flex flex-col gap-3 border-t border-border/60 pt-8 pb-10 sm:mt-24 lg:mt-28 sm:flex-row sm:items-center sm:justify-between">
         {/* text-lg(1.125rem) 대비 0.7배 ≈ 0.7875rem */}
-        <p className="text-[0.7875rem] text-muted-foreground">
+        <p className="flex items-center gap-2 text-[0.7875rem] text-muted-foreground">
+          <FlaskConical className="size-3.5 shrink-0 opacity-80" aria-hidden />
           개발·검증용 링크 (헤더 메뉴에서도 이동 가능)
         </p>
         <div className="flex flex-wrap gap-2">
@@ -247,7 +288,10 @@ const DashboardPage: React.FC = () => {
             size="default"
             className="text-[0.7875rem]"
           >
-            <Link href="/dashboard/mqtt-test">MQTT 테스트</Link>
+            <Link href="/dashboard/mqtt-test" className="gap-1.5">
+              <Antenna className="size-3.5 shrink-0" aria-hidden />
+              MQTT 테스트
+            </Link>
           </Button>
           <Button
             asChild
@@ -255,8 +299,12 @@ const DashboardPage: React.FC = () => {
             size="default"
             className="text-[0.7875rem]"
           >
-            <Link href="/dashboard/farms">농장 관리</Link>
+            <Link href="/dashboard/farms" className="gap-1.5">
+              <Warehouse className="size-3.5 shrink-0" aria-hidden />
+              농장 관리
+            </Link>
           </Button>
+          <ClearSensorReadingsButton farmId={selectedFarmId} />
         </div>
       </div>
     </div>

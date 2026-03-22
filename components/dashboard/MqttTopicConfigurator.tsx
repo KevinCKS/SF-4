@@ -25,27 +25,43 @@ import {
   type SensorTopicKey,
 } from "@/lib/mqtt/topicConfig"
 import { mqttTopicPillButtonClassName } from "@/components/dashboard/mqttTopicPillButtonClass"
+import { cn } from "@/lib/utils"
 import { useMqttTopicConfig } from "@/components/dashboard/useMqttTopicConfig"
 import { useDashboardFarm } from "@/components/dashboard/DashboardFarmContext"
+import {
+  Activity,
+  Cpu,
+  Droplets,
+  Fan,
+  Lightbulb,
+  PlugZap,
+  Radio,
+  RotateCcw,
+  TestTube,
+  Thermometer,
+  Zap,
+} from "lucide-react"
 
 const SENSOR_UI: Array<{
   key: SensorTopicKey
   label: string
+  Icon: typeof Thermometer
 }> = [
-  { key: "temperature", label: "온도" },
-  { key: "humidity", label: "습도" },
-  { key: "ec", label: "EC" },
-  { key: "ph", label: "pH" },
+  { key: "temperature", label: "온도", Icon: Thermometer },
+  { key: "humidity", label: "습도", Icon: Droplets },
+  { key: "ec", label: "EC", Icon: Activity },
+  { key: "ph", label: "pH", Icon: TestTube },
 ]
 
 const ACTUATOR_UI: Array<{
   key: ActuatorTopicKey
   label: string
+  Icon: typeof Lightbulb
 }> = [
-  { key: "led", label: "LED" },
-  { key: "pump", label: "Pump" },
-  { key: "fan1", label: "FAN 1" },
-  { key: "fan2", label: "FAN 2" },
+  { key: "led", label: "LED", Icon: Lightbulb },
+  { key: "pump", label: "Pump", Icon: Droplets },
+  { key: "fan1", label: "FAN 1", Icon: Fan },
+  { key: "fan2", label: "FAN 2", Icon: Fan },
 ]
 
 /**
@@ -122,7 +138,10 @@ export const MqttTopicConfigurator: React.FC = () => {
   return (
     <Card className="bg-card/70 backdrop-blur">
       <CardHeader>
-        <CardTitle className="text-2xl">MQTT 토픽 설정</CardTitle>
+        <CardTitle className="flex items-center gap-2 text-2xl">
+          <Radio className="size-7 shrink-0 text-primary" aria-hidden />
+          MQTT 토픽 설정
+        </CardTitle>
         <CardDescription className="text-lg leading-relaxed">
           아두이노/기기에서 하드코딩한 토픽 문자열을 웹에서 그대로 입력하세요.
           <span className="text-muted-foreground">
@@ -135,10 +154,16 @@ export const MqttTopicConfigurator: React.FC = () => {
       <CardContent>
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-3">
-            <p className="text-xl font-medium">센서</p>
-            {SENSOR_UI.map(({ key, label }) => (
+            <p className="flex items-center gap-2 text-xl font-medium">
+              <Cpu className="size-5 shrink-0 text-primary/90" aria-hidden />
+              센서
+            </p>
+            {SENSOR_UI.map(({ key, label, Icon }) => (
               <div key={key} className="space-y-1">
-                <Label className="text-xl">{label}</Label>
+                <Label className="flex items-center gap-2 text-xl">
+                  <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+                  {label}
+                </Label>
                 <Input
                   className="font-mono text-base"
                   value={draft.sensors[key]}
@@ -149,10 +174,16 @@ export const MqttTopicConfigurator: React.FC = () => {
             ))}
           </div>
           <div className="space-y-3">
-            <p className="text-xl font-medium">액추에이터</p>
-            {ACTUATOR_UI.map(({ key, label }) => (
+            <p className="flex items-center gap-2 text-xl font-medium">
+              <Zap className="size-5 shrink-0 text-primary/90" aria-hidden />
+              액추에이터
+            </p>
+            {ACTUATOR_UI.map(({ key, label, Icon }) => (
               <div key={key} className="space-y-1">
-                <Label className="text-xl">{label}</Label>
+                <Label className="flex items-center gap-2 text-xl">
+                  <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+                  {label}
+                </Label>
                 <Input
                   className="font-mono text-base"
                   value={draft.actuators[key]}
@@ -169,13 +200,14 @@ export const MqttTopicConfigurator: React.FC = () => {
             type="button"
             onClick={() => void handleApply()}
             disabled={isApplying}
-            className={mqttTopicPillButtonClassName}
+            className={cn(mqttTopicPillButtonClassName, "gap-2")}
           >
+            <PlugZap className="size-4 shrink-0" aria-hidden />
             {isApplying ? "적용 중…" : "브로커 연결 및 토픽 구독"}
           </Button>
           <Button
             variant="secondary"
-            className="text-lg"
+            className="gap-2 text-lg"
             disabled={isApplying}
             onClick={() => {
               const defaults = getDefaultMqttTopicConfig()
@@ -187,6 +219,7 @@ export const MqttTopicConfigurator: React.FC = () => {
               )
             }}
           >
+            <RotateCcw className="size-4 shrink-0" aria-hidden />
             기본값
           </Button>
         </div>

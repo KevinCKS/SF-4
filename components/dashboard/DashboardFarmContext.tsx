@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 
 import { useAuth } from "@/components/auth/AuthProvider"
 import type { Farm } from "@/types/farm"
+import { supabase } from "@/lib/supabaseClient"
 
 const STORAGE_KEY = "sf-dashboard-farm-id"
 
@@ -49,7 +50,8 @@ export const DashboardFarmProvider: React.FC<{
   const [selectedFarmId, setSelectedFarmIdState] = React.useState<
     string | null
   >(null)
-  const [isLoading, setIsLoading] = React.useState(false)
+  /** 첫 대시보드 진입 시 스피너를 바로 보이게 하기 위해 true로 둔다( refetch 가 끝나면 false ). */
+  const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
 
   const isDashboardRoute = pathname.startsWith("/dashboard")
@@ -59,18 +61,43 @@ export const DashboardFarmProvider: React.FC<{
       setFarms([])
       setSelectedFarmIdState(null)
       setError(null)
+      setIsLoading(false)
     }
   }, [user?.id])
 
   const refetch = React.useCallback(async () => {
     if (!user?.id || !isDashboardRoute) {
       setFarms([])
+      setIsLoading(false)
       return
     }
+
     setIsLoading(true)
     setError(null)
     try {
-      const res = await fetch("/api/farms", { credentials: "include" })
+      // 로그아웃 직후 React user와 서버 세션이 잠깐 어긋나면 /api/farms 가 401이 된다.
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session?.user) {
+        setFarms([])
+        setSelectedFarmIdState(null)
+        return
+      }
+
+      const res = await fetch("/api/farms", {
+        credentials: "include",
+        cache: "no-store",
+        signal:
+          typeof AbortSignal !== "undefined" && "timeout" in AbortSignal
+            ? AbortSignal.timeout(25_000)
+            : undefined,
+      })
+      if (res.status === 401) {
+        setFarms([])
+        setSelectedFarmIdState(null)
+        return
+      }
       if (!res.ok) {
         const j = (await res.json().catch(() => ({}))) as { error?: string }
         throw new Error(j.error ?? "농장 목록을 불러오지 못했습니다.")
@@ -90,7 +117,17 @@ export const DashboardFarmProvider: React.FC<{
         return list[0]?.id ?? null
       })
     } catch (e) {
-      setError(e instanceof Error ? e.message : "목록 조회 오류")
+      const aborted =
+        e instanceof DOMException
+          ? e.name === "AbortError"
+          : e instanceof Error && e.name === "AbortError"
+      setError(
+        aborted
+          ? "농장 목록 요청이 시간 초과(25초)되었습니다. 서버를 막 켰다면 첫 요청이 느릴 수 있어 잠시 후 다시 시도해 주세요."
+          : e instanceof Error
+            ? e.message
+            : "목록 조회 오류",
+      )
       setFarms([])
     } finally {
       setIsLoading(false)

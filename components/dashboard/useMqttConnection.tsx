@@ -11,6 +11,11 @@ type MqttStatusResponse = {
   hint?: string
 }
 
+/** `silent: true`이면 첫 로딩용 스켈레톤을 띄우지 않는다(연결/해제 후 갱신 시 화면이 통째로 비는 것 방지). */
+export type RefreshMqttStatusOptions = {
+  silent?: boolean
+}
+
 export type MqttConnectionContextValue = {
   connected: boolean
   envConfigured: boolean | null
@@ -19,7 +24,7 @@ export type MqttConnectionContextValue = {
   isStatusLoading: boolean
   isConnecting: boolean
   isDisconnecting: boolean
-  refreshStatus: () => Promise<void>
+  refreshStatus: (options?: RefreshMqttStatusOptions) => Promise<void>
   connect: (topicsToSubscribe: string[]) => Promise<boolean>
   disconnect: () => Promise<boolean>
 }
@@ -63,31 +68,56 @@ const useMqttConnectionState = (): MqttConnectionContextValue => {
   const [isStatusLoading, setIsStatusLoading] = React.useState(true)
   const [isConnecting, setIsConnecting] = React.useState(false)
 
-  const refreshStatus = React.useCallback(async (): Promise<void> => {
-    setIsStatusLoading(true)
-    try {
-      const res = await fetch("/api/mqtt/status", {
-        credentials: "include",
-        cache: "no-store",
-      })
-
-      if (!res.ok) {
-        setConnected(false)
-        setLastError(await res.text().catch(() => "MQTT 상태 조회 실패"))
-        return
+  const refreshStatus = React.useCallback(
+    async (options?: RefreshMqttStatusOptions): Promise<void> => {
+      const silent = options?.silent === true
+      if (!silent) {
+        setIsStatusLoading(true)
       }
+      try {
+        const res = await fetch("/api/mqtt/status", {
+          credentials: "include",
+          cache: "no-store",
+          signal:
+            typeof AbortSignal !== "undefined" && "timeout" in AbortSignal
+              ? AbortSignal.timeout(20_000)
+              : undefined,
+        })
 
-      const data = (await res.json()) as MqttStatusResponse
-      setConnected(Boolean(data.connected))
-      setEnvConfigured(typeof data.envConfigured === "boolean" ? data.envConfigured : null)
-      setLastError(data.lastConnectError ?? data.hint ?? null)
-    } catch (e) {
-      setConnected(false)
-      setLastError(e instanceof Error ? e.message : "MQTT 상태 조회 중 오류가 발생했습니다.")
-    } finally {
-      setIsStatusLoading(false)
-    }
-  }, [])
+        if (!res.ok) {
+          setConnected(false)
+          setLastError(await res.text().catch(() => "MQTT 상태 조회 실패"))
+          return
+        }
+
+        const data = (await res.json()) as MqttStatusResponse
+        setConnected(Boolean(data.connected))
+        setEnvConfigured(
+          typeof data.envConfigured === "boolean" ? data.envConfigured : null,
+        )
+        setLastError(data.lastConnectError ?? data.hint ?? null)
+      } catch (e) {
+        setConnected(false)
+        const aborted =
+          e instanceof DOMException
+            ? e.name === "AbortError"
+            : e instanceof Error &&
+              (e.name === "AbortError" || /aborted|timeout/i.test(e.message))
+        setLastError(
+          aborted
+            ? "MQTT 상태 조회가 시간 초과(20초)되었습니다. 네트워크·서버를 확인한 뒤 페이지를 새로고침 해 주세요."
+            : e instanceof Error
+              ? e.message
+              : "MQTT 상태 조회 중 오류가 발생했습니다.",
+        )
+      } finally {
+        if (!silent) {
+          setIsStatusLoading(false)
+        }
+      }
+    },
+    [],
+  )
 
   React.useEffect(() => {
     void refreshStatus()
@@ -95,7 +125,7 @@ const useMqttConnectionState = (): MqttConnectionContextValue => {
 
   React.useEffect(() => {
     const onTopicConfigChange = () => {
-      void refreshStatus()
+      void refreshStatus({ silent: true })
     }
     window.addEventListener(MQTT_TOPIC_CONFIG_CHANGED_EVENT, onTopicConfigChange)
     return () => window.removeEventListener(MQTT_TOPIC_CONFIG_CHANGED_EVENT, onTopicConfigChange)
@@ -118,7 +148,7 @@ const useMqttConnectionState = (): MqttConnectionContextValue => {
         return false
       }
 
-      await refreshStatus()
+      await refreshStatus({ silent: true })
       return true
     } catch (e) {
       setLastError(e instanceof Error ? e.message : "MQTT 연결 중 오류가 발생했습니다.")
@@ -149,7 +179,7 @@ const useMqttConnectionState = (): MqttConnectionContextValue => {
         return false
       }
 
-      await refreshStatus()
+      await refreshStatus({ silent: true })
       return true
     } catch (e) {
       setLastError(

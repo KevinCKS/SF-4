@@ -19,6 +19,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { LayoutDashboard, List, PlusCircle, Warehouse } from "lucide-react"
 
 /**
  * 농장 목록 + 추가 폼. GET으로 목록, POST로 추가 후 목록을 다시 불러온다. (단계 2.3·2.4)
@@ -219,20 +220,29 @@ const DashboardFarmsPage: React.FC = () => {
       <div className="relative z-10">
         <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">농장 관리</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+            <Warehouse className="size-8 shrink-0 text-primary" aria-hidden />
+            농장 관리
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             본인 계정에 등록된 농장만 표시됩니다.
           </p>
         </div>
         <Button variant="secondary" asChild>
-          <Link href="/dashboard">대시보드로</Link>
+          <Link href="/dashboard" className="gap-2">
+            <LayoutDashboard className="size-4 shrink-0" aria-hidden />
+            대시보드로
+          </Link>
         </Button>
         </div>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>등록된 농장</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <List className="size-5 shrink-0 text-primary" aria-hidden />
+              등록된 농장
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -271,7 +281,10 @@ const DashboardFarmsPage: React.FC = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>농장 추가</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <PlusCircle className="size-5 shrink-0 text-primary" aria-hidden />
+              농장 추가
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

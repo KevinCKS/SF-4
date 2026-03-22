@@ -7,10 +7,18 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { CardDescription, CardHeader, CardTitle, Card } from "@/components/ui/card"
+import { CardHeader, CardTitle, Card } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import {
+  AlertCircle,
+  Antenna,
+  Fan,
+  Lightbulb,
+  Droplets,
+  WifiOff,
+} from "lucide-react"
 import { useMqttTopicConfig } from "@/components/dashboard/useMqttTopicConfig"
 import { useDashboardFarm } from "@/components/dashboard/DashboardFarmContext"
 import { useMqttConnection } from "@/components/dashboard/useMqttConnection"
@@ -28,6 +36,17 @@ const actuatorOnNeonButtonClassName =
  */
 export const ActuatorArea: React.FC = () => {
   type ActuatorKey = "led" | "pump" | "fan1" | "fan2"
+
+  /** 액추에이터 종류별 대표 아이콘. */
+  const ACTUATOR_ICONS: Record<
+    ActuatorKey,
+    React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>
+  > = {
+    led: Lightbulb,
+    pump: Droplets,
+    fan1: Fan,
+    fan2: Fan,
+  }
 
   type ActuatorDef = {
     key: ActuatorKey
@@ -124,6 +143,7 @@ export const ActuatorArea: React.FC = () => {
   }
 
   const renderActuatorCard = (a: ActuatorDef) => {
+    const ActuatorIcon = ACTUATOR_ICONS[a.key]
     const s = lastState[a.key]
     const isSending = sendingKey === a.key
 
@@ -139,13 +159,13 @@ export const ActuatorArea: React.FC = () => {
         <CardHeader className="px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <CardTitle className="text-2xl">{a.label}</CardTitle>
-              <CardDescription className="!text-xs min-h-5 leading-5 text-muted-foreground">
-                토픽:{" "}
-                <span className="font-mono !text-xs whitespace-nowrap overflow-hidden text-ellipsis align-middle">
-                  {a.topic}
-                </span>
-              </CardDescription>
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                <ActuatorIcon
+                  className="size-7 shrink-0 text-primary/90"
+                  aria-hidden
+                />
+                {a.label}
+              </CardTitle>
             </div>
             <Badge
               className={cn(
@@ -196,7 +216,7 @@ export const ActuatorArea: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {isStatusLoading ? (
         <div className="space-y-3">
           <Skeleton className="h-10 w-full" />
@@ -207,6 +227,7 @@ export const ActuatorArea: React.FC = () => {
         </div>
       ) : !connected ? (
         <Alert className="px-3 py-3 text-lg">
+          <WifiOff className="size-5" aria-hidden />
           <AlertTitle>MQTT 연결 필요</AlertTitle>
           <AlertDescription>
             {envConfigured === false
@@ -214,7 +235,13 @@ export const ActuatorArea: React.FC = () => {
               : "우측 상단 [MQTT 토픽 설정]에서 ‘브로커 연결 및 토픽 구독’으로 연결한 뒤에만 액추에이터 제어 버튼을 사용할 수 있습니다."}
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <Button variant="secondary" asChild>
-                <a href="/dashboard/mqtt-test">MQTT 테스트 화면</a>
+                <a
+                  href="/dashboard/mqtt-test"
+                  className="inline-flex items-center gap-2"
+                >
+                  <Antenna className="size-4 shrink-0" aria-hidden />
+                  MQTT 테스트 화면
+                </a>
               </Button>
             </div>
             {lastError ? (
@@ -224,12 +251,15 @@ export const ActuatorArea: React.FC = () => {
         </Alert>
       ) : lastError ? (
         <Alert variant="destructive" className="px-3 py-3 text-lg">
+          <AlertCircle className="size-5" aria-hidden />
           <AlertTitle>오류</AlertTitle>
           <AlertDescription>{lastError}</AlertDescription>
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2">{ACTUATORS.map(renderActuatorCard)}</div>
+      <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
+        {ACTUATORS.map(renderActuatorCard)}
+      </div>
     </div>
   )
 }

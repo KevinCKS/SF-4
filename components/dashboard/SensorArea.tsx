@@ -23,12 +23,37 @@ import { useMqttTopicConfig } from "@/components/dashboard/useMqttTopicConfig"
 import { useDashboardFarm } from "@/components/dashboard/DashboardFarmContext"
 import { useMqttConnection } from "@/components/dashboard/useMqttConnection"
 import { cn } from "@/lib/utils"
+import {
+  Activity,
+  AlertCircle,
+  Antenna,
+  Clock,
+  Filter,
+  Inbox,
+  LineChart as LineChartIcon,
+  ListOrdered,
+  TestTube,
+  Thermometer,
+  Droplets,
+  WifiOff,
+} from "lucide-react"
 
 /**
  * 센서 영역. 온도/습도/EC/pH의 현재 게이지와 최근 시계열(라인 차트)을 표시한다.
  */
 const SensorArea: React.FC = () => {
   type SensorKey = "temperature" | "humidity" | "ec" | "ph"
+
+  /** 센서 종류별 대표 아이콘(게이지·차트 카드 헤더에 사용). */
+  const SENSOR_ICONS: Record<
+    SensorKey,
+    React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>
+  > = {
+    temperature: Thermometer,
+    humidity: Droplets,
+    ec: Activity,
+    ph: TestTube,
+  }
 
   type SensorDef = {
     key: SensorKey
@@ -184,6 +209,12 @@ const SensorArea: React.FC = () => {
         cache: "no-store",
       })
       if (!res.ok) {
+        if (res.status === 401) {
+          setLastError(
+            "로그인 세션이 만료되었습니다. 새로고침하거나 다시 로그인해 주세요.",
+          )
+          return
+        }
         setLastError(await res.text().catch(() => "MQTT 수신 로그 조회 실패"))
         return
       }
@@ -270,7 +301,14 @@ const SensorArea: React.FC = () => {
   const formatGaugeValueText = (v: number | null, unit: string): string =>
     v === null ? "--" : `${v.toFixed(2)}${unit}`
 
+  /**
+   * 프로그래스바 양 끝에 붙이는 스케일 끝값(단위 포함).
+   */
+  const formatRangeEndLabel = (n: number, unit: string): string =>
+    unit ? `${n}${unit}` : String(n)
+
   const renderGaugeCard = (s: SensorDef) => {
+    const SensorIcon = SENSOR_ICONS[s.key]
     const value = latestValues[s.key]
     const showValue = value ?? null
 
@@ -282,19 +320,21 @@ const SensorArea: React.FC = () => {
     return (
       <div
         key={s.key}
-        className="rounded-xl border border-border/80 bg-card/85 p-4 shadow-md shadow-black/25 ring-1 ring-white/10 backdrop-blur-md"
+        className="[container-type:inline-size] overflow-hidden rounded-xl border border-border/80 bg-card/85 p-4 shadow-md shadow-black/25 ring-1 ring-white/10 backdrop-blur-md sm:p-5"
       >
-        {/* 첫 줄: 라벨 + 범위(위쪽) — 큰 측정값과 겹침 방지 */}
-        <div className="flex items-start justify-between gap-3">
-          <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
-          <p className="shrink-0 pt-0.5 text-[10px] leading-none text-muted-foreground">
-            범위 {s.min}~{s.max}
-          </p>
+        <div className="flex items-center gap-2">
+          <SensorIcon
+            className="size-[clamp(1.75rem,10cqi,2.25rem)] shrink-0 text-primary/90"
+            aria-hidden
+          />
+          <span className="whitespace-nowrap break-keep text-[clamp(1.5rem,12cqi,2.5rem)] font-semibold leading-none tracking-tight text-foreground">
+            {s.label}
+          </span>
         </div>
-        {/* 측정값: 그라데이션 입체감. 기준 1.6875rem의 0.9배 → 1.51875rem */}
-            <p
-              className={cn(
-                "mt-1 text-[1.51875rem] font-bold tabular-nums tracking-tight leading-none",
+        {/* 측정값: 카드 너비(cqi)에 맞춰 한 줄에서 가능한 한 크게 */}
+        <p
+          className={cn(
+            "mt-2 block w-full whitespace-nowrap text-[clamp(1.35rem,28cqi,5rem)] font-bold tabular-nums tracking-tight leading-none",
             showValue === null && "font-semibold text-muted-foreground",
           )}
           style={
@@ -311,16 +351,17 @@ const SensorArea: React.FC = () => {
         >
           {formatGaugeValueText(showValue, s.unit)}
         </p>
-        <div className="mt-3">
+        <div className="mt-3 space-y-1">
+          <div className="flex justify-between gap-2 px-0.5 text-[10px] tabular-nums leading-none text-muted-foreground">
+            <span className="min-w-0 shrink truncate">
+              {formatRangeEndLabel(s.min, s.unit)}
+            </span>
+            <span className="min-w-0 shrink truncate text-right">
+              {formatRangeEndLabel(s.max, s.unit)}
+            </span>
+          </div>
           <Progress value={percent} aria-label={`${s.label} 게이지`} className="h-2" />
         </div>
-        {/* MQTT 토픽 설정과 동일한 수신 토픽 문자열 */}
-        <p className="mt-2.5 text-[10px] leading-snug text-muted-foreground">
-          토픽:{" "}
-          <span className="break-all font-mono text-[10px] text-muted-foreground/90">
-            {s.topic}
-          </span>
-        </p>
       </div>
     )
   }
@@ -396,14 +437,24 @@ const SensorArea: React.FC = () => {
     return (
       <div
         key={s.key}
-        className="rounded-xl border border-border/80 bg-card/85 p-3 shadow-md shadow-black/25 ring-1 ring-white/10 backdrop-blur-md"
+        className="rounded-xl border border-border/80 bg-card/85 p-4 shadow-md shadow-black/25 ring-1 ring-white/10 backdrop-blur-md"
       >
+        <p className="mb-2 flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
+          <LineChartIcon
+            className="size-4 shrink-0 text-muted-foreground"
+            aria-hidden
+          />
+          <span>
+            {s.label}{" "}
+            <span className="font-medium text-muted-foreground">· 최근 추이</span>
+          </span>
+        </p>
         <ChartContainer
           id={`sensor-${s.key}`}
           config={{ value: { label: `${s.label}`, color: s.color } }}
-          className="h-[180px] text-xs [&_.recharts-cartesian-axis-tick_text]:text-[12px]"
+          className="h-[168px] text-xs [&_.recharts-cartesian-axis-tick_text]:text-[12px]"
         >
-          <LineChart data={data} margin={{ left: 0, right: 0, top: 10, bottom: 0 }}>
+          <LineChart data={data} margin={{ left: 0, right: 0, top: 8, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis
             dataKey="ts"
@@ -412,7 +463,12 @@ const SensorArea: React.FC = () => {
             tick={{ fontSize: 12 }}
             tickFormatter={(v) => {
               const d = new Date(v)
-              return d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })
+              // 24시간제(오전/오후 문구 없음)
+              return d.toLocaleTimeString("ko-KR", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+              })
             }}
           />
           <YAxis
@@ -457,6 +513,7 @@ const SensorArea: React.FC = () => {
 
       {!isStatusLoading && !connected ? (
         <Alert className="px-3 py-3 text-lg">
+          <WifiOff className="size-5" aria-hidden />
           <AlertTitle>MQTT 연결 필요</AlertTitle>
           <AlertDescription>
             {envConfigured === false
@@ -464,7 +521,13 @@ const SensorArea: React.FC = () => {
               : "우측 상단 [MQTT 토픽 설정]에서 토픽을 확인한 뒤, ‘브로커 연결 및 토픽 구독’ 버튼으로 연결과 구독을 한 번에 적용하세요. 메시지가 들어오면 게이지와 차트가 갱신됩니다."}
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <Button variant="secondary" asChild>
-                <a href="/dashboard/mqtt-test">MQTT 테스트 화면</a>
+                <a
+                  href="/dashboard/mqtt-test"
+                  className="inline-flex items-center gap-2"
+                >
+                  <Antenna className="size-4 shrink-0" aria-hidden />
+                  MQTT 테스트 화면
+                </a>
               </Button>
             </div>
             {lastError ? (
@@ -480,12 +543,19 @@ const SensorArea: React.FC = () => {
           if (!hasAnyData) {
             return (
               <Alert className="px-3 py-3 text-lg">
+                <Inbox className="size-5" aria-hidden />
                 <AlertTitle>데이터 없음</AlertTitle>
                 <AlertDescription>
                   아직 MQTT에서 센서 데이터를 수신하지 못했습니다.
                   <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                     <Button variant="secondary" asChild>
-                      <a href="/dashboard/mqtt-test">MQTT 테스트 화면</a>
+                      <a
+                        href="/dashboard/mqtt-test"
+                        className="inline-flex items-center gap-2"
+                      >
+                        <Antenna className="size-4 shrink-0" aria-hidden />
+                        MQTT 테스트 화면
+                      </a>
                     </Button>
                   </div>
                 </AlertDescription>
@@ -498,13 +568,17 @@ const SensorArea: React.FC = () => {
 
       {connected && lastError && !isStatusLoading ? (
         <Alert variant="destructive" className="px-3 py-3 text-lg">
+          <AlertCircle className="size-5" aria-hidden />
           <AlertTitle>오류</AlertTitle>
           <AlertDescription>{lastError}</AlertDescription>
         </Alert>
       ) : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <Label className="text-sm font-medium">필터 우선순위(시간 → 갯수)</Label>
+        <Label className="flex items-center gap-2 text-sm font-medium">
+          <Filter className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          필터 우선순위(시간 → 갯수)
+        </Label>
 
         <div className="flex flex-wrap items-center justify-end gap-3">
           {/* 시간 우선 */}
@@ -513,7 +587,8 @@ const SensorArea: React.FC = () => {
               value={String(minutesToShow)}
               onValueChange={(v) => setMinutesToShow(Number(v))}
             >
-              <SelectTrigger className="h-9 min-h-9 text-sm">
+              <SelectTrigger className="h-9 min-h-9 gap-2 text-sm">
+                <Clock className="size-3.5 shrink-0 opacity-70" aria-hidden />
                 <SelectValue placeholder="1단계: 최근 N분" />
               </SelectTrigger>
               <SelectContent className="text-sm">
@@ -531,7 +606,11 @@ const SensorArea: React.FC = () => {
               value={String(pointsToShow)}
               onValueChange={(v) => setPointsToShow(Number(v))}
             >
-              <SelectTrigger className="h-9 min-h-9 text-sm">
+              <SelectTrigger className="h-9 min-h-9 gap-2 text-sm">
+                <ListOrdered
+                  className="size-3.5 shrink-0 opacity-70"
+                  aria-hidden
+                />
                 <SelectValue placeholder="2단계: 최근 N개" />
               </SelectTrigger>
               <SelectContent className="text-sm">
@@ -545,11 +624,11 @@ const SensorArea: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 xl:gap-5">
         {SENSOR_DEFS.map((s) => renderGaugeCard(s))}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-5 md:grid-cols-2 md:gap-6">
         {SENSOR_DEFS.map((s) => renderMiniChart(s))}
       </div>
     </div>

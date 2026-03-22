@@ -25,6 +25,16 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  Antenna,
+  Info,
+  Inbox,
+  LayoutDashboard,
+  ListTree,
+  Send,
+  Plug,
+  Trash2,
+} from "lucide-react"
 
 /** MQTT 테스트 API에서 내려주는 수신 로그 한 건 */
 type MqttMessageLog = {
@@ -224,18 +234,25 @@ const MqttTestPage: React.FC = () => {
     <div className="flex w-full flex-col gap-6 bg-background px-6 py-10">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">MQTT 테스트</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+            <Antenna className="size-8 shrink-0 text-primary" aria-hidden />
+            MQTT 테스트
+          </h1>
           <p className="text-sm text-muted-foreground">
             서버가 브로커에 붙은 뒤 허용 토픽을 구독하고, 여기서 발행·수신을
             확인합니다.
           </p>
         </div>
         <Button variant="outline" asChild>
-          <Link href="/dashboard">대시보드로</Link>
+          <Link href="/dashboard" className="gap-2">
+            <LayoutDashboard className="size-4 shrink-0" aria-hidden />
+            대시보드로
+          </Link>
         </Button>
       </div>
 
       <Alert>
+        <Info className="size-5" aria-hidden />
         <AlertTitle>구독은 자동입니다</AlertTitle>
         <AlertDescription className="text-sm">
           「브로커에 연결」을 누르면 서버가 미리 정해 둔 모든 허용 토픽을 한꺼번에
@@ -245,6 +262,7 @@ const MqttTestPage: React.FC = () => {
       </Alert>
 
       <Alert>
+        <Info className="size-5" aria-hidden />
         <AlertTitle>HiveMQ에서 보냈는데 여기가 비어 있을 때</AlertTitle>
         <AlertDescription className="space-y-2 text-sm">
           <p>
@@ -272,6 +290,7 @@ const MqttTestPage: React.FC = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex flex-wrap items-center gap-2">
+              <Plug className="size-5 shrink-0 text-primary" aria-hidden />
               연결 상태
               <Badge variant={connected ? "default" : "secondary"}>
                 {connected ? "연결됨" : "미연결"}
@@ -330,7 +349,10 @@ const MqttTestPage: React.FC = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>구독 대상 토픽</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <ListTree className="size-5 shrink-0 text-primary" aria-hidden />
+              구독 대상 토픽
+            </CardTitle>
             <CardDescription>
               연결 성공 후 서버가 구독하는 토픽 목록입니다.
             </CardDescription>
@@ -355,7 +377,10 @@ const MqttTestPage: React.FC = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>메시지 보내기 (발행)</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Send className="size-5 shrink-0 text-primary" aria-hidden />
+            메시지 보내기 (발행)
+          </CardTitle>
           <CardDescription>
             허용된 토픽만 선택할 수 있습니다. JSON 문자열을 권장합니다.
           </CardDescription>
@@ -398,13 +423,22 @@ const MqttTestPage: React.FC = () => {
       <Card>
         <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle>받은 메시지</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Inbox className="size-5 shrink-0 text-primary" aria-hidden />
+              받은 메시지
+            </CardTitle>
             <CardDescription>
               서버가 구독 중인 토픽으로 들어온 내용이 시간 순으로 쌓입니다.
               {loadingLog ? " (불러오는 중…)" : ""}
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={() => void handleClearLog()}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => void handleClearLog()}
+          >
+            <Trash2 className="size-3.5 shrink-0" aria-hidden />
             로그 비우기
           </Button>
         </CardHeader>

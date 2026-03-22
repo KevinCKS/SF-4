@@ -3,7 +3,15 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Antenna, LayoutDashboard, Leaf, Warehouse } from "lucide-react"
+import {
+  Antenna,
+  LayoutDashboard,
+  Leaf,
+  LogOut,
+  MapPin,
+  User,
+  Warehouse,
+} from "lucide-react"
 
 import { useAuth } from "@/components/auth/AuthProvider"
 import { DashboardFarmSelect } from "@/components/dashboard/DashboardFarmSelect"
@@ -63,7 +71,8 @@ export const DashboardSidebar: React.FC = () => {
 
       {/* 농장 선택: 하단 중복을 없애고 좌측 상단(로고 바로 아래)에만 둔다. */}
       <div className="mb-6 space-y-2 px-0.5">
-        <p className="px-2 text-[0.9rem] font-semibold tracking-tight text-foreground/85">
+        <p className="flex items-center gap-2 px-2 text-[0.9rem] font-semibold tracking-tight text-foreground/85">
+          <MapPin className="size-4 shrink-0 text-primary/80" aria-hidden />
           현재 농장
         </p>
         <div className="w-full [&_button]:border-sidebar-border/80">
@@ -109,6 +118,7 @@ export const DashboardSidebar: React.FC = () => {
                   variant="outline"
                   className="h-auto w-full justify-start gap-2 rounded-xl border-sidebar-border bg-card/30 py-3 text-left text-[0.9rem] backdrop-blur"
                 >
+                  <User className="size-4 shrink-0 opacity-80" aria-hidden />
                   <span className="truncate">{user.email ?? "계정"}</span>
                 </Button>
               </DropdownMenuTrigger>
@@ -129,6 +139,7 @@ export const DashboardSidebar: React.FC = () => {
                   className="text-[0.9rem]"
                   onClick={() => router.push("/logout")}
                 >
+                  <LogOut className="size-4" aria-hidden />
                   로그아웃
                 </DropdownMenuItem>
               </DropdownMenuContent>
