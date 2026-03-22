@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "list-farms": "node scripts/list-farms.js"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.43",

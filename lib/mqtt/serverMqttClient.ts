@@ -1,6 +1,7 @@
 import mqtt, { type IClientOptions } from "mqtt"
 
 import { appendMqttLog, getMqttLogMeta } from "@/lib/mqtt/messageLog"
+import { persistMqttSensorPayload } from "@/lib/mqtt/sensorPersist"
 import { getManagerState } from "@/lib/mqtt/runtimeState"
 import { getDefaultMqttSubscribeTopics, isAllowedMqttTopic } from "@/lib/mqtt/topics"
 
@@ -114,8 +115,12 @@ export const connectAndInit = async (subscribeTopics?: string[]): Promise<void> 
             const t = topic.toString()
             const raw = payload.toString()
             appendMqttLog(t, raw)
-            // 현재는 센서/DB 스키마가 확정되지 않았으므로 일단 로깅만 한다.
-            // 다음 단계에서 센서 메타/읽기 테이블에 저장하도록 확장한다.
+            void persistMqttSensorPayload(t, raw).catch((err) => {
+              if (process.env.NODE_ENV === "development") {
+                // eslint-disable-next-line no-console
+                console.error("[MQTT] sensor DB 저장 실패:", err)
+              }
+            })
             try {
               // eslint-disable-next-line no-console
               console.log(`[MQTT] message topic=${t}`, JSON.parse(raw))

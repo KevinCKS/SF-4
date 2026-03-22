@@ -46,13 +46,21 @@ if (!brokerUrl || !username || !password) {
   process.exit(1)
 }
 
+// DB 저장(단계 5.3): 토픽에는 farm UUID 없이 smartfarm/sensors/... 만 쓰고,
+// farm 은 JSON 의 farm_id 로만 넘긴다. (.env.local → MQTT_TEST_FARM_ID)
+const farmId = process.env.MQTT_TEST_FARM_ID || process.env.SMARTFARM_FARM_ID
+if (!farmId) {
+  console.error(
+    "[MQTT SENSOR TEST] MQTT_TEST_FARM_ID (또는 SMARTFARM_FARM_ID) 에 본인 농장 UUID 를 넣어 주세요.",
+  )
+  process.exit(1)
+}
+
 const topics = {
-  // 대시보드(UI)에서 설정한 토픽과 동일하게 맞춘다.
-  temperature: "smartfarm/class11/sensor/temperature",
-  humidity: "smartfarm/class11/sensor/humidity",
-  ec: "smartfarm/class11/sensor/ec",
-  // UI에서 pH 항목이 /h 로 들어가 있던 것으로 보여서 동일하게 맞춘다.
-  ph: "smartfarm/class11/sensor/ph",
+  temperature: "smartfarm/sensors/temperature",
+  humidity: "smartfarm/sensors/humidity",
+  ec: "smartfarm/sensors/ec",
+  ph: "smartfarm/sensors/ph",
 }
 
 // 동일 브로커에 다른 클라이언트가 이미 같은 clientId를 쓰면 연결이 밀릴 수 있음.
@@ -95,10 +103,22 @@ client.on("connect", () => {
     const ph = clamp(6.6 + 1.0 * Math.sin(t / 22_000 - 0.4) + noise(0.1), 0, 14)
 
     const payloads = {
-      temperature: JSON.stringify({ value: Number(temperature.toFixed(2)) }),
-      humidity: JSON.stringify({ value: Number(humidity.toFixed(2)) }),
-      ec: JSON.stringify({ value: Number(ec.toFixed(3)) }),
-      ph: JSON.stringify({ value: Number(ph.toFixed(2)) }),
+      temperature: JSON.stringify({
+        farm_id: farmId,
+        value: Number(temperature.toFixed(2)),
+      }),
+      humidity: JSON.stringify({
+        farm_id: farmId,
+        value: Number(humidity.toFixed(2)),
+      }),
+      ec: JSON.stringify({
+        farm_id: farmId,
+        value: Number(ec.toFixed(3)),
+      }),
+      ph: JSON.stringify({
+        farm_id: farmId,
+        value: Number(ph.toFixed(2)),
+      }),
     }
 
     // Promise 없이 “전송 요청만” 보낸다(테스트 목적)

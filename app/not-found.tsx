@@ -1,7 +1,10 @@
+"use client"
+
 import { CenteredState } from "@/components/common/CenteredState"
 
 /**
  * 404(Not Found) 공통 화면.
+ * (onAction 전달을 위해 Client Component — 서버에서 함수 props는 직렬화 불가)
  */
 const NotFound = () => {
   return (

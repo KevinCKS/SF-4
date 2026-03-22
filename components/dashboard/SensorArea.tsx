@@ -170,9 +170,16 @@ const SensorArea: React.FC = () => {
 
   // 상태 조회/연결은 useMqttConnection 훅에서 공통 처리한다.
 
-  const fetchMessages = React.useCallback(async () => {
-    setIsMessagesLoading(true)
-    setLastError(null)
+  /**
+   * MQTT 수신 로그를 서버에서 가져와 차트/게이지에 반영한다.
+   * @param options.silent - true 이면 로딩 플래그를 켜지 않음(주기 폴링 시 UI 깜박임 방지)
+   */
+  const fetchMessages = React.useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent === true
+    if (!silent) {
+      setIsMessagesLoading(true)
+      setLastError(null)
+    }
     try {
       const res = await fetch("/api/mqtt/messages", {
         credentials: "include",
@@ -229,12 +236,15 @@ const SensorArea: React.FC = () => {
         nextLatest[key] = pts.length > 0 ? pts[pts.length - 1]?.value ?? null : null
       }
 
+      setLastError(null)
       setSeries(nextSeries)
       setLatestValues(nextLatest)
     } catch (e) {
       setLastError(e instanceof Error ? e.message : "MQTT 수신 처리 중 오류가 발생했습니다.")
     } finally {
-      setIsMessagesLoading(false)
+      if (!silent) {
+        setIsMessagesLoading(false)
+      }
     }
   }, [SENSOR_DEFS, minutesToShow, pointsToShow])
 
@@ -242,10 +252,10 @@ const SensorArea: React.FC = () => {
 
   React.useEffect(() => {
     if (!connected) return
-    void fetchMessages()
+    void fetchMessages({ silent: true })
 
     const id = window.setInterval(() => {
-      void fetchMessages()
+      void fetchMessages({ silent: true })
     }, 2000)
     return () => window.clearInterval(id)
   }, [connected, fetchMessages])
@@ -253,13 +263,13 @@ const SensorArea: React.FC = () => {
   // 표시 범위 설정을 바꿨을 때 즉시 반영하기 위해 한 번 갱신한다.
   React.useEffect(() => {
     if (!connected) return
-    void fetchMessages()
+    void fetchMessages({ silent: true })
   }, [pointsToShow, minutesToShow, connected, fetchMessages])
 
   const handleConnect = async () => {
     const ok = await connect(getSubscribeTopicsFromConfig(config))
     if (!ok) return
-    await fetchMessages()
+    await fetchMessages({ silent: true })
   }
 
   const renderGaugeCard = (s: SensorDef) => {
@@ -311,9 +321,11 @@ const SensorArea: React.FC = () => {
     }) => {
       const { cx, cy, index } = props
       if (typeof cx !== "number" || typeof cy !== "number" || typeof index !== "number") {
-        return <g />
+        return <g key={`sensor-dot-skip-${String(index)}`} />
       }
-      if (index !== data.length - 1) return <g />
+      if (index !== data.length - 1) {
+        return <g key={`sensor-dot-hide-${index}`} />
+      }
 
       // (cx, cy)를 기준으로 위로 향하는 삼각형(화살표)을 그린다.
       // 좌표계 특성상 y가 아래로 증가하므로 cy-쪽이 “위”가 된다.
@@ -358,7 +370,7 @@ const SensorArea: React.FC = () => {
       const hiYTop = yTop - hiH * 0.18
 
       return (
-        <g>
+        <g key={`sensor-dot-triangle-${index}`}>
           <polygon
             key="deep-shadow"
             points={`${x1},${deepShadowBase} ${x2},${deepShadowBase} ${cx},${deepShadowTop}`}

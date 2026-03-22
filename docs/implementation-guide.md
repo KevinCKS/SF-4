@@ -106,14 +106,19 @@
 ## 단계 5: 센서 메타·DB 연동 및 검색/필터/정렬 (PRD §1.3, §4)
 
 - [ ] **5.1** Supabase에 **sensors** 테이블 생성  
-  - `id`, `farm_id` (FK → farms), `name`, `sensor_type` (temperature, humidity, ec, ph 등), `unit`, `created_at`, `updated_at`  
-  - RLS: farm 소유자만 접근
+  - SQL 스크립트: `docs/sql/sensors-table.sql` → Supabase **SQL Editor**에서 실행 (선행: `farms` 테이블 존재)  
+  - `id`, `farm_id` (FK → farms, `ON DELETE CASCADE`), `name`, `sensor_type`, `unit`, `created_at`, `updated_at`  
+  - RLS: `farms.user_id = auth.uid()` 인 농장에 속한 센서만 CRUD
 - [ ] **5.2** **sensor_readings** 테이블 생성  
-  - `id`, `sensor_id` (FK → sensors), `value` (numeric), `recorded_at` (timestamptz)  
-  - 인덱스: `(sensor_id, recorded_at)`  
-  - RLS: sensor → farm → user
+  - SQL 스크립트: `docs/sql/sensor-readings-table.sql` → Supabase **SQL Editor**에서 실행 (선행: `sensors`)  
+  - `id`, `sensor_id` (FK → sensors, `ON DELETE CASCADE`), `value`, `recorded_at`, `created_at`, `updated_at`  
+  - 인덱스: `(sensor_id, recorded_at desc)`  
+  - RLS: sensor → farm → 본인(`auth.uid()`)만 CRUD
 - [ ] **5.3** 대시보드에서 MQTT로 수신한 센서 값을 해당 farm의 sensors/sensor_readings에 **저장**  
-  - farm별 sensor 레코드가 없으면 자동 생성하거나, 기본 4종(온도, 습도, EC, pH)을 farm 생성 시 함께 생성하는 정책 선택
+  - 구현: `lib/mqtt/sensorPersist.ts` + `lib/supabaseServiceRole.ts` (서버 MQTT 콜백에서 호출)  
+  - 환경 변수: `SUPABASE_SERVICE_ROLE_KEY` (서버 전용, 클라이언트 노출 금지)  
+  - 정책: **첫 수신 시** 해당 farm에 `sensor_type` 별 `sensors` 행을 자동 생성(기본 4종 이름·단위는 코드 고정). farm 생성 시 시드하는 방식은 선택 사항.  
+  - 페이로드·토픽 규칙: `docs/mqtt-sensor-payload.md` 참고
 - [ ] **5.4** 라인 차트 데이터를 DB에서 조회하도록 연동: `sensor_readings`에서 기간·sensor_id로 조회 후 차트에 반영
 - [ ] **5.5** **검색**: 농장명·구역명·센서명(또는 장비 ID)으로 검색 가능한 UI/API
 - [ ] **5.6** **필터**: 센서 타입(온도/습도/EC/pH 등), 농장/구역, 기간(오늘/최근 7일/사용자 지정) 선택
