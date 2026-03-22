@@ -37,8 +37,8 @@ export const DashboardFarmSelect: React.FC<DashboardFarmSelectProps> = ({
 
   if (isLoading && farms.length === 0) {
     return (
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Spinner className="size-4" />
+      <div className="flex items-center gap-2 text-lg text-muted-foreground">
+        <Spinner className="size-5" />
         <span className="hidden sm:inline">농장 목록 불러오는 중…</span>
       </div>
     )
@@ -47,8 +47,8 @@ export const DashboardFarmSelect: React.FC<DashboardFarmSelectProps> = ({
   if (error) {
     return (
       <div className="flex max-w-xs flex-col items-center gap-1 sm:flex-row">
-        <span className="text-center text-xs text-destructive">{error}</span>
-        <Button variant="ghost" size="sm" onClick={() => void refetch()}>
+        <span className="text-center text-lg text-destructive">{error}</span>
+        <Button variant="ghost" size="default" className="text-lg" onClick={() => void refetch()}>
           다시 시도
         </Button>
       </div>
@@ -57,7 +57,7 @@ export const DashboardFarmSelect: React.FC<DashboardFarmSelectProps> = ({
 
   if (farms.length === 0) {
     return (
-      <Button variant="outline" size="sm" asChild>
+      <Button variant="outline" size="default" className="text-lg" asChild>
         <Link href="/dashboard/farms">농장 등록하기</Link>
       </Button>
     )
@@ -79,14 +79,14 @@ export const DashboardFarmSelect: React.FC<DashboardFarmSelectProps> = ({
       >
         <SelectTrigger
           className={cn(
-            "h-9 w-full min-w-[10rem] rounded-xl border border-sidebar-border/80 bg-card/40 px-3 text-xs shadow-sm shadow-primary/5 backdrop-blur",
+            "h-11 w-full min-w-[10rem] rounded-xl border border-sidebar-border/80 bg-card/40 px-3 text-lg shadow-sm shadow-primary/5 backdrop-blur",
             layout === "header" &&
-              "min-w-[10rem] max-w-xs sm:max-w-sm bg-card/50 text-sm",
+              "min-w-[10rem] max-w-xs sm:max-w-sm bg-card/50 text-xl",
           )}
         >
           <SelectValue placeholder="농장을 선택하세요" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="text-lg">
           {farms.map((f) => (
             <SelectItem key={f.id} value={f.id}>
               <span className="truncate">{f.name}</span>

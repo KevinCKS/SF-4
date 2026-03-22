@@ -11,13 +11,52 @@ type MqttStatusResponse = {
   hint?: string
 }
 
+export type MqttConnectionContextValue = {
+  connected: boolean
+  envConfigured: boolean | null
+  lastError: string | null
+  setLastError: React.Dispatch<React.SetStateAction<string | null>>
+  isStatusLoading: boolean
+  isConnecting: boolean
+  isDisconnecting: boolean
+  refreshStatus: () => Promise<void>
+  connect: (topicsToSubscribe: string[]) => Promise<boolean>
+  disconnect: () => Promise<boolean>
+}
+
+const MqttConnectionContext = React.createContext<MqttConnectionContextValue | null>(null)
+
+/**
+ * 대시보드 트리에서 MQTT 연결 상태를 **한 번만** 보관하고, 하위 페이지·센서·액추가 동일 상태를 본다.
+ * (훅을 컴포넌트마다 호출하면 상태가 분리되어 상단은 Connected·카드는 미연결로 어긋난다.)
+ */
+export const MqttConnectionProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const value = useMqttConnectionState()
+  return (
+    <MqttConnectionContext.Provider value={value}>{children}</MqttConnectionContext.Provider>
+  )
+}
+
 /**
  * MQTT 연결 상태(로딩/연결됨/환경설정 여부/오류 메시지)를 공통으로 관리한다.
  * - GET `/api/mqtt/status`로 상태를 조회한다.
  * - POST `/api/mqtt/connect`로 연결·구독을 요청한다.
  * - 토픽 설정 변경 이벤트 발생 시 상태를 자동 새로고침한다.
+ * @throws MqttConnectionProvider 밖에서 호출하면 오류
  */
-export const useMqttConnection = () => {
+export const useMqttConnection = (): MqttConnectionContextValue => {
+  const ctx = React.useContext(MqttConnectionContext)
+  if (!ctx) {
+    throw new Error(
+      "useMqttConnection은 MqttConnectionProvider 내부에서만 사용할 수 있습니다.",
+    )
+  }
+  return ctx
+}
+
+const useMqttConnectionState = (): MqttConnectionContextValue => {
   const [connected, setConnected] = React.useState(false)
   const [envConfigured, setEnvConfigured] = React.useState<boolean | null>(null)
   const [lastError, setLastError] = React.useState<string | null>(null)
@@ -135,4 +174,3 @@ export const useMqttConnection = () => {
     disconnect,
   }
 }
-

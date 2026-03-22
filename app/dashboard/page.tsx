@@ -6,7 +6,6 @@ import { toast } from "sonner"
 
 import { useDashboardFarm } from "@/components/dashboard/DashboardFarmContext"
 import { useMqttConnection } from "@/components/dashboard/useMqttConnection"
-import { useMqttTopicConfig } from "@/components/dashboard/useMqttTopicConfig"
 import { MqttTopicConfigurator } from "@/components/dashboard/MqttTopicConfigurator"
 import { mqttTopicPillButtonClassName } from "@/components/dashboard/mqttTopicPillButtonClass"
 import SensorArea from "@/components/dashboard/SensorArea"
@@ -23,22 +22,20 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
 import { badgeVariants } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getSubscribeTopicsFromConfig } from "@/lib/mqtt/topicConfig"
+import { getMqttTopicConfig, getSubscribeTopicsFromConfig } from "@/lib/mqtt/topicConfig"
 import { isAllowedMqttTopic } from "@/lib/mqtt/topics"
 import { cn } from "@/lib/utils"
 
 /**
- * 대시보드 메인: 센서 영역 + 액추에이터 영역 레이아웃. (단계 4.1, 이후 4.2·4.3에서 채움)
+ * 대시보드 메인: 센서 영역과 액추에이터 영역 레이아웃.
  */
 const DashboardPage: React.FC = () => {
   const { isLoading, error, farms, selectedFarmId } = useDashboardFarm()
-  const mqttConfig = useMqttTopicConfig(selectedFarmId)
   const {
     connected,
     envConfigured,
@@ -90,7 +87,8 @@ const DashboardPage: React.FC = () => {
   const mqttToggleBusy = isConnecting || isDisconnecting
 
   /**
-   * MQTT 상태 배지 클릭 시 연결 또는 연결 해제를 수행한다.
+   * MQTT 상태 배지 클릭 시 연결 해제하거나,
+   * 저장된 MQTT 토픽 설정(localStorage)을 즉시 읽어 브로커 연결·구독을 요청한다.
    */
   const handleMqttStatusClick = async () => {
     if (mqttToggleBusy) return
@@ -104,7 +102,9 @@ const DashboardPage: React.FC = () => {
       toast.error("MQTT 환경 변수가 설정되지 않았습니다.")
       return
     }
-    const topics = getSubscribeTopicsFromConfig(mqttConfig)
+    // React 상태가 아닌 최신 저장값을 사용한다(설정 시트 저장 직후·다른 탭 반영 등).
+    const configFromStorage = getMqttTopicConfig(selectedFarmId)
+    const topics = getSubscribeTopicsFromConfig(configFromStorage)
     const invalid = topics.filter((t) => !isAllowedMqttTopic(t))
     if (invalid.length > 0) {
       toast.error(`허용되지 않은 토픽이 있습니다: ${invalid[0]}`)
@@ -117,17 +117,17 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="w-full px-8 py-8">
-      <div className="flex flex-col gap-1.5">
-        <h1 className="text-2xl font-semibold tracking-tight">대시보드</h1>
+      <div className="flex flex-col gap-2">
+        <h1 className="text-4xl font-semibold tracking-tight">대시보드</h1>
         <p className="text-lg leading-relaxed text-muted-foreground">
           선택한 농장의 센서와 액추에이터를 한 화면에서 확인합니다.
         </p>
         {error ? (
-          <p className="text-sm text-destructive">{error}</p>
+          <p className="text-xl text-destructive">{error}</p>
         ) : isLoading && farms.length === 0 ? (
-          <Skeleton className="h-4 w-48" />
+          <Skeleton className="h-6 w-72" />
         ) : farms.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xl text-muted-foreground">
             등록된 농장이 없습니다. 농장을 먼저 추가해 주세요.
           </p>
         ) : null}
@@ -137,7 +137,7 @@ const DashboardPage: React.FC = () => {
         {/* MQTT 연결 상태 배지: 클릭 시 연결/연결 해제(별도 버튼 없음) */}
         <div className="flex min-h-10 items-center">
           {isStatusLoading ? (
-            <Skeleton className="h-9 min-w-[180px] rounded-full" />
+            <Skeleton className="h-9 min-w-[12rem] rounded-full" />
           ) : (
             <button
               type="button"
@@ -152,7 +152,7 @@ const DashboardPage: React.FC = () => {
               onClick={() => void handleMqttStatusClick()}
               className={cn(
                 badgeVariants({ variant: "outline" }),
-                "h-9 min-h-9 gap-2.5 rounded-full border-2 px-4 py-1 text-sm font-semibold leading-none tracking-tight transition-[opacity,transform,box-shadow] hover:opacity-95 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50",
+                "h-9 min-h-9 gap-2 rounded-full border-2 px-4 py-1 text-sm font-semibold leading-none tracking-tight transition-[opacity,transform,box-shadow] hover:opacity-95 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50",
                 connected
                   ? "cursor-pointer border-emerald-500/55 bg-emerald-500/15 text-emerald-800 shadow-sm shadow-emerald-500/10 dark:border-emerald-400/50 dark:bg-emerald-500/18 dark:text-emerald-200 dark:shadow-emerald-500/15"
                   : "cursor-pointer border-amber-500/70 bg-amber-500/20 text-amber-950 shadow-sm shadow-amber-500/15 ring-1 ring-amber-500/25 dark:border-amber-400/55 dark:bg-amber-500/22 dark:text-amber-100 dark:ring-amber-400/30",
@@ -203,8 +203,8 @@ const DashboardPage: React.FC = () => {
               onPointerDown={startDragResize}
             />
             <SheetHeader>
-              <SheetTitle>MQTT 토픽 설정</SheetTitle>
-              <SheetDescription>
+              <SheetTitle className="text-2xl">MQTT 토픽 설정</SheetTitle>
+              <SheetDescription className="text-lg leading-relaxed">
                 토픽을 입력한 뒤 “브로커 연결 및 토픽 구독”으로 연결과 구독을 한 번에 적용합니다.
               </SheetDescription>
             </SheetHeader>
@@ -216,48 +216,34 @@ const DashboardPage: React.FC = () => {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        {/* 단계 4.2: 온도·습도·EC·pH 게이지 + 라인 차트 */}
         <Card className="bg-card/70 backdrop-blur">
           <CardHeader>
-            <CardTitle>센서</CardTitle>
-            <CardDescription>
-              온도, 습도, EC, pH 현재값(게이지)과 최근 시계열(라인 차트)을 이 영역에
-              표시합니다. (단계 4.2에서 구현 예정)
-            </CardDescription>
+            <CardTitle className="text-2xl">센서</CardTitle>
           </CardHeader>
           <CardContent>
-            <SensorArea
-              onOpenMqttTopicSettings={() => setTopicSheetOpen(true)}
-            />
+            <SensorArea />
           </CardContent>
         </Card>
 
-        {/* 단계 4.3: LED, Pump, FAN1, FAN2 제어 */}
         <Card className="bg-card/70 backdrop-blur">
           <CardHeader>
-            <CardTitle>액추에이터</CardTitle>
-            <CardDescription>
-              식물성장 LED, 펌프, FAN 1, FAN 2 제어 버튼을 이 영역에 둡니다. (단계
-              4.3에서 구현 예정)
-            </CardDescription>
+            <CardTitle className="text-2xl">액추에이터</CardTitle>
           </CardHeader>
           <CardContent>
-            <ActuatorArea
-              onOpenMqttTopicSettings={() => setTopicSheetOpen(true)}
-            />
+            <ActuatorArea />
           </CardContent>
         </Card>
       </div>
 
       <div className="mt-6 flex flex-col gap-2 border-t border-border/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-muted-foreground">
+        <p className="text-lg text-muted-foreground">
           개발·검증용 링크 (헤더 메뉴에서도 이동 가능)
         </p>
         <div className="flex flex-wrap gap-2">
-          <Button asChild variant="secondary" size="sm">
+          <Button asChild variant="secondary" size="default" className="text-lg">
             <Link href="/dashboard/mqtt-test">MQTT 테스트</Link>
           </Button>
-          <Button asChild variant="outline" size="sm">
+          <Button asChild variant="outline" size="default" className="text-lg">
             <Link href="/dashboard/farms">농장 관리</Link>
           </Button>
         </div>

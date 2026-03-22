@@ -1,3 +1,4 @@
+import { MqttConnectionProvider } from "@/components/dashboard/useMqttConnection"
 import { DashboardSidebar } from "@/components/layout/DashboardSidebar"
 
 /**
@@ -22,7 +23,9 @@ export default function DashboardLayout({
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_left,_rgba(255,255,255,0.08)_0%,_transparent_60%)]"
         />
-        <div className="relative">{children}</div>
+        <MqttConnectionProvider>
+          <div className="relative">{children}</div>
+        </MqttConnectionProvider>
       </main>
     </div>
   )

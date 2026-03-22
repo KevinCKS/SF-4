@@ -19,22 +19,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-import { mqttTopicPillButtonClassName } from "@/components/dashboard/mqttTopicPillButtonClass"
 import { useMqttTopicConfig } from "@/components/dashboard/useMqttTopicConfig"
 import { useDashboardFarm } from "@/components/dashboard/DashboardFarmContext"
 import { useMqttConnection } from "@/components/dashboard/useMqttConnection"
 
-export type SensorAreaProps = {
-  /** MQTT 미연결 시 토픽 설정 시트를 연다(브로커 연결·구독은 시트 내 단일 버튼으로 수행). */
-  onOpenMqttTopicSettings?: () => void
-}
-
 /**
  * 센서 영역. 온도/습도/EC/pH의 현재 게이지와 최근 시계열(라인 차트)을 표시한다.
  */
-const SensorArea: React.FC<SensorAreaProps> = ({
-  onOpenMqttTopicSettings,
-}) => {
+const SensorArea: React.FC = () => {
   type SensorKey = "temperature" | "humidity" | "ec" | "ph"
 
   type SensorDef = {
@@ -287,7 +279,7 @@ const SensorArea: React.FC<SensorAreaProps> = ({
       >
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-medium text-muted-foreground">{s.label}</p>
+            <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
             <p className="mt-1 text-lg font-semibold text-foreground">
               {showValue === null ? "--" : `${showValue}${s.unit}`}
             </p>
@@ -309,8 +301,8 @@ const SensorArea: React.FC<SensorAreaProps> = ({
     const data = points.map((p) => ({ ts: p.ts, value: p.value }))
 
     /**
-     * 현재값(마지막 포인트)에만 삼각형 화살표를 렌더한다.
-     * 시각적 “입체감”을 위해 한 겹 더 아래로 어두운 폴리곤을 겹친다.
+     * 현재값(마지막 포인트)에만 위쪽을 가리키는 삼각형을 렌더한다.
+     * MQTT Connected 배지와 같은 민트·네온 느낌을 위해 SVG 필터(가우시안 블러 머지)로 외곽 발광을 준다.
      */
     const CurrentValueTriangleDot = (props: {
       cx?: number
@@ -326,88 +318,47 @@ const SensorArea: React.FC<SensorAreaProps> = ({
         return <g key={`sensor-dot-hide-${index}`} />
       }
 
-      // (cx, cy)를 기준으로 위로 향하는 삼각형(화살표)을 그린다.
-      // 좌표계 특성상 y가 아래로 증가하므로 cy-쪽이 “위”가 된다.
-      const w = 12 // 가로 폭(전체 크기 축소)
-      const h = 16 // 높이(전체 크기 축소)
+      // (cx, cy)를 기준으로 위로 향하는 삼각형. y는 아래로 증가하므로 위 꼭짓점은 yTop.
+      const w = 12
+      const h = 16
       const x1 = cx - w / 2
       const x2 = cx + w / 2
-      // 아래쪽(메인 삼각형)의 베이스를 살짝 줄여 “아래 삼각형”을 더 작게 느끼도록 한다.
       const yBase = cy + 8
       const yTop = cy - h
 
-      // 입체감:
-      // - 그림자를 2~3겹(깊은 그림자 + 중간 그림자 + 얕은 글로우)
-      // - 테두리(링)로 “두드러짐”
-      // - 위쪽 하이라이트로 “현대적인 광택” 느낌
-      const deepShadowOffset = 2.3
-      const midShadowOffset = 1.2
-      const glowOffset = 0.8
-
-      const deepShadowTop = yTop + deepShadowOffset
-      const deepShadowBase = yBase + deepShadowOffset
-      const midShadowTop = yTop + midShadowOffset
-      const midShadowBase = yBase + midShadowOffset
-      const glowTop = yTop + glowOffset
-      const glowBase = yBase + glowOffset
-
-      // 외곽 “링” (살짝 더 크게)
-      const ringW = w * 1.04
-      const ringH = h * 0.95
-      const ringX1 = cx - ringW / 2
-      const ringX2 = cx + ringW / 2
-      const ringYBase = yBase + 0.5
-      const ringYTop = yTop - (ringH - h) / 2
-
-      // 하이라이트(위쪽 광택)
-      // 위쪽(하이라이트) 삼각형을 “조금 더 크게”
-      const hiW = w * 0.60
-      const hiH = h * 0.40
-      const hiX1 = cx - hiW / 2
-      const hiX2 = cx + hiW / 2
-      const hiYBase = yTop + hiH * 0.88
-      const hiYTop = yTop - hiH * 0.18
+      const points = `${x1},${yBase} ${x2},${yBase} ${cx},${yTop}`
+      const neonFilterId = `sensor-triangle-neon-${s.key}`
 
       return (
         <g key={`sensor-dot-triangle-${index}`}>
-          <polygon
-            key="deep-shadow"
-            points={`${x1},${deepShadowBase} ${x2},${deepShadowBase} ${cx},${deepShadowTop}`}
-            fill="rgba(0,0,0,0.40)"
-          />
-          <polygon
-            key="mid-shadow"
-            points={`${x1},${midShadowBase} ${x2},${midShadowBase} ${cx},${midShadowTop}`}
-            fill="rgba(0,0,0,0.22)"
-          />
-          {/* 살짝 아래에 깔린 글로우 레이어 */}
-          <polygon
-            key="glow"
-            points={`${x1},${glowBase} ${x2},${glowBase} ${cx},${glowTop}`}
-            fill="rgba(255,255,255,0.12)"
-          />
-
-          {/* 외곽 링 */}
-          <polygon
-            key="ring"
-            points={`${ringX1},${ringYBase} ${ringX2},${ringYBase} ${cx},${ringYTop}`}
-            fill="rgba(0,0,0,0)"
-            stroke="rgba(255,255,255,0.55)"
-            strokeWidth={1.0}
-          />
-
-          <polygon
-            key="main"
-            points={`${x1},${yBase} ${x2},${yBase} ${cx},${yTop}`}
-            fill={s.color}
-            stroke="rgba(255,255,255,0.55)"
-            strokeWidth={1.2}
-          />
-          <polygon
-            key="highlight"
-            points={`${hiX1},${hiYBase} ${hiX2},${hiYBase} ${cx},${hiYTop}`}
-            fill="rgba(255,255,255,0.38)"
-          />
+          <defs>
+            <filter
+              id={neonFilterId}
+              x="-120%"
+              y="-120%"
+              width="340%"
+              height="340%"
+              colorInterpolationFilters="sRGB"
+            >
+              {/* 넓은 발광 + 좁은 발광 + 원형을 겹쳐 네온 사인 느낌 */}
+              <feGaussianBlur in="SourceGraphic" stdDeviation="5.5" result="bloom" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="glow" />
+              <feMerge>
+                <feMergeNode in="bloom" />
+                <feMergeNode in="glow" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+          <g filter={`url(#${neonFilterId})`}>
+            <polygon
+              points={points}
+              fill={s.color}
+              stroke="rgba(236, 253, 245, 0.92)"
+              strokeWidth={1.35}
+              strokeLinejoin="round"
+            />
+          </g>
         </g>
       )
     }
@@ -417,7 +368,7 @@ const SensorArea: React.FC<SensorAreaProps> = ({
         key={s.key}
         id={`sensor-${s.key}`}
         config={{ value: { label: `${s.label}`, color: s.color } }}
-        className="h-[180px]"
+        className="h-[180px] text-xs [&_.recharts-cartesian-axis-tick_text]:text-[12px]"
       >
         <LineChart data={data} margin={{ left: 0, right: 0, top: 10, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" />
@@ -425,6 +376,7 @@ const SensorArea: React.FC<SensorAreaProps> = ({
             dataKey="ts"
             type="number"
             domain={["auto", "auto"]}
+            tick={{ fontSize: 12 }}
             tickFormatter={(v) => {
               const d = new Date(v)
               return d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })
@@ -433,9 +385,16 @@ const SensorArea: React.FC<SensorAreaProps> = ({
           <YAxis
             domain={["auto", "auto"]}
             width={36}
+            tick={{ fontSize: 12 }}
           />
           <ChartTooltip
-            content={<ChartTooltipContent indicator="dot" hideLabel />}
+            content={
+              <ChartTooltipContent
+                indicator="dot"
+                hideLabel
+                className="text-xs"
+              />
+            }
           />
           <Line
             dataKey="value"
@@ -454,7 +413,7 @@ const SensorArea: React.FC<SensorAreaProps> = ({
     <div className="space-y-6">
       {isStatusLoading ? (
         <div className="space-y-3">
-          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-12 w-full" />
           <div className="grid gap-4 md:grid-cols-2">
             <Skeleton className="h-[140px]" />
             <Skeleton className="h-[140px]" />
@@ -463,26 +422,20 @@ const SensorArea: React.FC<SensorAreaProps> = ({
       ) : null}
 
       {!isStatusLoading && !connected ? (
-        <Alert>
+        <Alert className="px-3 py-3 text-lg">
           <AlertTitle>MQTT 연결 필요</AlertTitle>
           <AlertDescription>
             {envConfigured === false
               ? "환경 변수에 MQTT 브로커 정보가 설정되지 않았습니다."
               : "우측 상단 [MQTT 토픽 설정]에서 토픽을 확인한 뒤, ‘브로커 연결 및 토픽 구독’ 버튼으로 연결과 구독을 한 번에 적용하세요. 메시지가 들어오면 게이지와 차트가 갱신됩니다."}
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <Button
-                type="button"
-                className={mqttTopicPillButtonClassName}
-                onClick={() => onOpenMqttTopicSettings?.()}
-                disabled={!onOpenMqttTopicSettings}
-              >
-                MQTT 토픽 설정 열기
-              </Button>
               <Button variant="secondary" asChild>
                 <a href="/dashboard/mqtt-test">MQTT 테스트 화면</a>
               </Button>
             </div>
-            {lastError ? <p className="mt-3 text-sm text-destructive">{lastError}</p> : null}
+            {lastError ? (
+              <p className="mt-3 text-sm leading-snug text-destructive">{lastError}</p>
+            ) : null}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -492,7 +445,7 @@ const SensorArea: React.FC<SensorAreaProps> = ({
           const hasAnyData = Object.values(series).some((pts) => pts.length > 0)
           if (!hasAnyData) {
             return (
-              <Alert>
+              <Alert className="px-3 py-3 text-lg">
                 <AlertTitle>데이터 없음</AlertTitle>
                 <AlertDescription>
                   아직 MQTT에서 센서 데이터를 수신하지 못했습니다.
@@ -510,32 +463,26 @@ const SensorArea: React.FC<SensorAreaProps> = ({
       ) : null}
 
       {connected && lastError && !isStatusLoading ? (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="px-3 py-3 text-lg">
           <AlertTitle>오류</AlertTitle>
           <AlertDescription>{lastError}</AlertDescription>
         </Alert>
       ) : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-col">
-          <Label className="text-sm">필터 우선순위(시간 → 갯수)</Label>
-          <p className="text-xs text-muted-foreground">
-            1) 최근 <strong>{minutesToShow}분</strong> 구간을 먼저 자른 뒤,
-            2) 그 안에서 최근 <strong>{pointsToShow}개</strong> 포인트만 표시합니다.
-          </p>
-        </div>
+        <Label className="text-sm font-medium">필터 우선순위(시간 → 갯수)</Label>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-3">
           {/* 시간 우선 */}
           <div className="min-w-[12rem]">
             <Select
               value={String(minutesToShow)}
               onValueChange={(v) => setMinutesToShow(Number(v))}
             >
-              <SelectTrigger className="h-9">
+              <SelectTrigger className="h-9 min-h-9 text-sm">
                 <SelectValue placeholder="1단계: 최근 N분" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="text-sm">
                 <SelectItem value="5">최근 5분</SelectItem>
                 <SelectItem value="10">최근 10분</SelectItem>
                 <SelectItem value="20">최근 20분</SelectItem>
@@ -550,10 +497,10 @@ const SensorArea: React.FC<SensorAreaProps> = ({
               value={String(pointsToShow)}
               onValueChange={(v) => setPointsToShow(Number(v))}
             >
-              <SelectTrigger className="h-9">
+              <SelectTrigger className="h-9 min-h-9 text-sm">
                 <SelectValue placeholder="2단계: 최근 N개" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="text-sm">
                 <SelectItem value="30">최근 30개</SelectItem>
                 <SelectItem value="60">최근 60개</SelectItem>
                 <SelectItem value="80">최근 80개</SelectItem>

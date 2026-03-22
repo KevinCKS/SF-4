@@ -45,17 +45,17 @@ export const DashboardSidebar: React.FC = () => {
   const { user, isLoading } = useAuth()
 
   return (
-    <aside className="sticky top-0 z-30 flex h-screen w-64 shrink-0 flex-col border-r border-border/60 bg-sidebar/50 px-3 py-5 backdrop-blur supports-[backdrop-filter]:bg-sidebar/40">
+    <aside className="sticky top-0 z-30 flex h-screen w-[17.5rem] shrink-0 flex-col border-r border-border/60 bg-sidebar/50 px-3 py-5 backdrop-blur supports-[backdrop-filter]:bg-sidebar/40">
       <Link
         href="/dashboard"
         className="mb-5 flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors hover:bg-muted/30"
       >
-        <Leaf className="size-7 shrink-0 text-primary" aria-hidden />
+        <Leaf className="size-9 shrink-0 text-primary" aria-hidden />
         <div className="flex min-w-0 flex-col leading-tight">
-          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <span className="text-base font-medium uppercase tracking-wider text-muted-foreground">
             Smartfarm
           </span>
-          <span className="truncate text-lg font-semibold text-foreground">
+          <span className="truncate text-3xl font-semibold text-foreground">
             Web Service
           </span>
         </div>
@@ -63,7 +63,7 @@ export const DashboardSidebar: React.FC = () => {
 
       {/* 농장 선택: 하단 중복을 없애고 좌측 상단(로고 바로 아래)에만 둔다. */}
       <div className="mb-6 space-y-2 px-0.5">
-        <p className="px-2 text-base font-semibold tracking-tight text-foreground/85">
+        <p className="px-2 text-lg font-semibold tracking-tight text-foreground/85">
           현재 농장
         </p>
         <div className="w-full [&_button]:border-sidebar-border/80">
@@ -80,7 +80,7 @@ export const DashboardSidebar: React.FC = () => {
               key={href}
               href={href}
               className={cn(
-                "flex items-center gap-3 rounded-xl border-l-2 border-transparent px-3 py-2.5 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-xl border-l-2 border-transparent px-3 py-3 text-xl font-medium transition-colors",
                 active
                   ? "border-primary/70 bg-primary/10 text-primary shadow-[0_0_0_1px_rgba(16,185,129,0.15)]"
                   : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
@@ -88,7 +88,7 @@ export const DashboardSidebar: React.FC = () => {
             >
               <Icon
                 className={cn(
-                  "size-[1.125rem] shrink-0 opacity-90",
+                  "size-5 shrink-0 opacity-90",
                   active && "text-primary",
                 )}
               />
@@ -101,13 +101,13 @@ export const DashboardSidebar: React.FC = () => {
       <div className="mt-4 space-y-4 border-t border-sidebar-border pt-4">
         <div className="px-0.5">
           {isLoading ? (
-            <p className="px-2 text-xs text-muted-foreground">인증 확인 중…</p>
+            <p className="px-2 text-lg text-muted-foreground">인증 확인 중…</p>
           ) : user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="h-auto w-full justify-start gap-2 rounded-xl border-sidebar-border bg-card/30 py-2.5 text-left text-xs backdrop-blur"
+                  className="h-auto w-full justify-start gap-2 rounded-xl border-sidebar-border bg-card/30 py-3 text-left text-lg backdrop-blur"
                 >
                   <span className="truncate">{user.email ?? "계정"}</span>
                 </Button>
@@ -115,17 +115,18 @@ export const DashboardSidebar: React.FC = () => {
               <DropdownMenuContent
                 align="start"
                 side="top"
-                className="w-56"
+                className="w-64 text-lg"
               >
-                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                <DropdownMenuLabel className="text-lg font-normal text-muted-foreground">
                   로그인 계정
                 </DropdownMenuLabel>
-                <DropdownMenuItem disabled className="text-xs">
+                <DropdownMenuItem disabled className="text-lg">
                   {user.email}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   variant="destructive"
+                  className="text-lg"
                   onClick={() => router.push("/logout")}
                 >
                   로그아웃

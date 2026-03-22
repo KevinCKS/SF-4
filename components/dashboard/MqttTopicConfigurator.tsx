@@ -122,8 +122,8 @@ export const MqttTopicConfigurator: React.FC = () => {
   return (
     <Card className="bg-card/70 backdrop-blur">
       <CardHeader>
-        <CardTitle>MQTT 토픽 설정</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-2xl">MQTT 토픽 설정</CardTitle>
+        <CardDescription className="text-lg leading-relaxed">
           아두이노/기기에서 하드코딩한 토픽 문자열을 웹에서 그대로 입력하세요.
           <span className="text-muted-foreground">
             {" "}
@@ -135,12 +135,12 @@ export const MqttTopicConfigurator: React.FC = () => {
       <CardContent>
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-3">
-            <p className="text-sm font-medium">센서</p>
+            <p className="text-xl font-medium">센서</p>
             {SENSOR_UI.map(({ key, label }) => (
               <div key={key} className="space-y-1">
-                <Label className="text-sm">{label}</Label>
+                <Label className="text-xl">{label}</Label>
                 <Input
-                  className="font-mono"
+                  className="font-mono text-base"
                   value={draft.sensors[key]}
                   onChange={(e) => setSensorTopic(key, e.target.value)}
                   placeholder={getDefaultMqttTopicConfig().sensors[key]}
@@ -149,12 +149,12 @@ export const MqttTopicConfigurator: React.FC = () => {
             ))}
           </div>
           <div className="space-y-3">
-            <p className="text-sm font-medium">액추에이터</p>
+            <p className="text-xl font-medium">액추에이터</p>
             {ACTUATOR_UI.map(({ key, label }) => (
               <div key={key} className="space-y-1">
-                <Label className="text-sm">{label}</Label>
+                <Label className="text-xl">{label}</Label>
                 <Input
-                  className="font-mono"
+                  className="font-mono text-base"
                   value={draft.actuators[key]}
                   onChange={(e) => setActuatorTopic(key, e.target.value)}
                   placeholder={getDefaultMqttTopicConfig().actuators[key]}
@@ -175,6 +175,7 @@ export const MqttTopicConfigurator: React.FC = () => {
           </Button>
           <Button
             variant="secondary"
+            className="text-lg"
             disabled={isApplying}
             onClick={() => {
               const defaults = getDefaultMqttTopicConfig()
