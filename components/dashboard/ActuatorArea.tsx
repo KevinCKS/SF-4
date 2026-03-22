@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { CardDescription, CardHeader, CardTitle, Card } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
+import { mqttTopicPillButtonClassName } from "@/components/dashboard/mqttTopicPillButtonClass"
 import { cn } from "@/lib/utils"
 import { useMqttTopicConfig } from "@/components/dashboard/useMqttTopicConfig"
 import { useDashboardFarm } from "@/components/dashboard/DashboardFarmContext"
@@ -208,6 +209,7 @@ export const ActuatorArea: React.FC<ActuatorAreaProps> = ({
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <Button
                 type="button"
+                className={mqttTopicPillButtonClassName}
                 onClick={() => onOpenMqttTopicSettings?.()}
                 disabled={!onOpenMqttTopicSettings}
               >

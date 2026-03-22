@@ -187,6 +187,31 @@ export const connectAndInit = async (subscribeTopics?: string[]): Promise<void> 
 }
 
 /**
+ * 서버 MQTT 클라이언트 연결을 끊고 런타임 상태를 정리한다.
+ */
+export const disconnectMqtt = (): void => {
+  const state = getGlobalState()
+  state.connectingPromise = null
+
+  const c = state.client
+  if (c) {
+    try {
+      c.removeAllListeners()
+      c.end(true)
+    } catch {
+      // 무시
+    }
+  }
+
+  state.client = null
+  state.isConnected = false
+  state.isSubscribing = false
+  state.subscribedTopics = []
+  state.latestDesiredTopics = []
+  state.lastConnectError = null
+}
+
+/**
  * MQTT 연결 상태 스냅샷.
  * @returns connected — mqtt.js client.connected 기준(브로커와의 소켓 연결 여부)
  */

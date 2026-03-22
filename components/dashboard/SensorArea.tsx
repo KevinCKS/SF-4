@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+import { mqttTopicPillButtonClassName } from "@/components/dashboard/mqttTopicPillButtonClass"
 import { useMqttTopicConfig } from "@/components/dashboard/useMqttTopicConfig"
 import { useDashboardFarm } from "@/components/dashboard/DashboardFarmContext"
 import { useMqttConnection } from "@/components/dashboard/useMqttConnection"
@@ -471,6 +472,7 @@ const SensorArea: React.FC<SensorAreaProps> = ({
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <Button
                 type="button"
+                className={mqttTopicPillButtonClassName}
                 onClick={() => onOpenMqttTopicSettings?.()}
                 disabled={!onOpenMqttTopicSettings}
               >

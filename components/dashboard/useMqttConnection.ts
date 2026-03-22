@@ -89,6 +89,39 @@ export const useMqttConnection = () => {
     }
   }, [refreshStatus])
 
+  const [isDisconnecting, setIsDisconnecting] = React.useState(false)
+
+  /**
+   * 서버 측 MQTT 클라이언트 연결을 해제한다.
+   * @returns 연결 해제 API 성공 여부
+   */
+  const disconnect = React.useCallback(async (): Promise<boolean> => {
+    setIsDisconnecting(true)
+    setLastError(null)
+    try {
+      const res = await fetch("/api/mqtt/disconnect", {
+        method: "POST",
+        credentials: "include",
+      })
+
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { details?: string }
+        setLastError(j.details ?? "MQTT 연결 해제 실패")
+        return false
+      }
+
+      await refreshStatus()
+      return true
+    } catch (e) {
+      setLastError(
+        e instanceof Error ? e.message : "MQTT 연결 해제 중 오류가 발생했습니다.",
+      )
+      return false
+    } finally {
+      setIsDisconnecting(false)
+    }
+  }, [refreshStatus])
+
   return {
     connected,
     envConfigured,
@@ -96,8 +129,10 @@ export const useMqttConnection = () => {
     setLastError,
     isStatusLoading,
     isConnecting,
+    isDisconnecting,
     refreshStatus,
     connect,
+    disconnect,
   }
 }
 

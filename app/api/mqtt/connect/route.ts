@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 
 import { isRequireUserSuccess, requireUser } from "@/lib/api/server"
+import { clearMqttLogs } from "@/lib/mqtt/messageLog"
 import { connectAndInit, getMqttStatus } from "@/lib/mqtt/serverMqttClient"
 
 /**
@@ -33,6 +34,8 @@ export async function POST(request: Request) {
   try {
     const topics = parsed.data.topics
     await connectAndInit(topics)
+    // 연결·구독이 모두 끝난 뒤에만 이전 수신 로그를 비운다(클라이언트 별도 요청 불필요).
+    clearMqttLogs()
     const status = getMqttStatus()
     return NextResponse.json({ success: true, ...status })
   } catch (e) {

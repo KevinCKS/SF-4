@@ -24,6 +24,7 @@ import {
   type MqttTopicConfig,
   type SensorTopicKey,
 } from "@/lib/mqtt/topicConfig"
+import { mqttTopicPillButtonClassName } from "@/components/dashboard/mqttTopicPillButtonClass"
 import { useMqttTopicConfig } from "@/components/dashboard/useMqttTopicConfig"
 import { useDashboardFarm } from "@/components/dashboard/DashboardFarmContext"
 
@@ -86,18 +87,12 @@ export const MqttTopicConfigurator: React.FC = () => {
       return
     }
 
+    const topicsToSubscribe = getSubscribeTopicsFromConfig(draft)
+
     setIsApplying(true)
     try {
-      setMqttTopicConfig(draft, selectedFarmId)
-      window.dispatchEvent(new Event(MQTT_TOPIC_CONFIG_CHANGED_EVENT))
-
-      // 이전 로그가 토픽 변경 후 혼동을 줄 수 있으므로 비운다.
-      await fetch("/api/mqtt/messages", {
-        method: "DELETE",
-        credentials: "include",
-      }).catch(() => null)
-
-      const topicsToSubscribe = getSubscribeTopicsFromConfig(draft)
+      // ① 한 번의 API 호출로 서버에서 브로커 연결 + 토픽 구독까지 완료한다.
+      // ② 성공한 뒤에만 localStorage 저장·이벤트로 UI 동기화(중간 단계가 보이지 않게).
       const res = await fetch("/api/mqtt/connect", {
         method: "POST",
         credentials: "include",
@@ -110,12 +105,15 @@ export const MqttTopicConfigurator: React.FC = () => {
         const msg =
           typeof (json as { details?: string }).details === "string"
             ? (json as { details: string }).details
-            : "MQTT 토픽 적용에 실패했습니다."
+            : "MQTT 브로커 연결 및 토픽 구독에 실패했습니다."
         toast.error(msg)
         return
       }
 
-      toast.success("브로커에 연결하고 토픽 구독을 갱신했습니다.")
+      setMqttTopicConfig(draft, selectedFarmId)
+      window.dispatchEvent(new Event(MQTT_TOPIC_CONFIG_CHANGED_EVENT))
+
+      toast.success("MQTT 브로커 연결과 토픽 구독을 완료했습니다.")
     } finally {
       setIsApplying(false)
     }
@@ -129,8 +127,8 @@ export const MqttTopicConfigurator: React.FC = () => {
           아두이노/기기에서 하드코딩한 토픽 문자열을 웹에서 그대로 입력하세요.
           <span className="text-muted-foreground">
             {" "}
-            아래 버튼 한 번으로 <strong>MQTT 브로커 연결</strong>과{" "}
-            <strong>입력한 토픽 구독</strong>이 함께 실행됩니다.
+            아래 버튼은 <strong>서버에 한 번만 요청</strong>하여 브로커 연결과 토픽 구독을
+            같이 처리합니다.
           </span>
         </CardDescription>
       </CardHeader>
@@ -167,8 +165,13 @@ export const MqttTopicConfigurator: React.FC = () => {
         </div>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
-          <Button onClick={() => void handleApply()} disabled={isApplying}>
-            {isApplying ? "연결·구독 적용 중…" : "브로커 연결 및 토픽 구독"}
+          <Button
+            type="button"
+            onClick={() => void handleApply()}
+            disabled={isApplying}
+            className={mqttTopicPillButtonClassName}
+          >
+            {isApplying ? "적용 중…" : "브로커 연결 및 토픽 구독"}
           </Button>
           <Button
             variant="secondary"
