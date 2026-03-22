@@ -29,7 +29,8 @@ import { Skeleton } from "@/components/ui/skeleton"
  * 대시보드 메인: 센서 영역 + 액추에이터 영역 레이아웃. (단계 4.1, 이후 4.2·4.3에서 채움)
  */
 const DashboardPage: React.FC = () => {
-  const { selectedFarm, isLoading, error, farms } = useDashboardFarm()
+  const { isLoading, error, farms } = useDashboardFarm()
+  const [topicSheetOpen, setTopicSheetOpen] = React.useState(false)
   const [topicSheetWidth, setTopicSheetWidth] = React.useState(() => {
     if (typeof window === "undefined") return 560
     return Math.min(560, Math.max(360, Math.floor(window.innerWidth * 0.9)))
@@ -79,10 +80,6 @@ const DashboardPage: React.FC = () => {
           <p className="text-sm text-destructive">{error}</p>
         ) : isLoading && farms.length === 0 ? (
           <Skeleton className="h-4 w-48" />
-        ) : selectedFarm ? (
-          <p className="text-sm font-medium text-foreground">
-            현재 농장: {selectedFarm.name}
-          </p>
         ) : farms.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             등록된 농장이 없습니다. 농장을 먼저 추가해 주세요.
@@ -91,7 +88,7 @@ const DashboardPage: React.FC = () => {
       </div>
 
       <div className="mt-6 flex justify-end">
-        <Sheet>
+        <Sheet open={topicSheetOpen} onOpenChange={setTopicSheetOpen}>
           <SheetTrigger asChild>
             <Button variant="outline" size="sm">
               MQTT 토픽 설정
@@ -118,7 +115,7 @@ const DashboardPage: React.FC = () => {
             <SheetHeader>
               <SheetTitle>MQTT 토픽 설정</SheetTitle>
               <SheetDescription>
-                아두이노가 하드코딩한 토픽 문자열을 입력하고 “토픽 적용”을 눌러 서버 구독을 갱신합니다.
+                토픽을 입력한 뒤 “브로커 연결 및 토픽 구독”으로 연결과 구독을 한 번에 적용합니다.
               </SheetDescription>
             </SheetHeader>
             <div className="mt-4">
@@ -139,7 +136,9 @@ const DashboardPage: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <SensorArea />
+            <SensorArea
+              onOpenMqttTopicSettings={() => setTopicSheetOpen(true)}
+            />
           </CardContent>
         </Card>
 
@@ -153,7 +152,9 @@ const DashboardPage: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ActuatorArea />
+            <ActuatorArea
+              onOpenMqttTopicSettings={() => setTopicSheetOpen(true)}
+            />
           </CardContent>
         </Card>
       </div>

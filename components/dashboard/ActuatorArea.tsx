@@ -10,20 +10,22 @@ import { Badge } from "@/components/ui/badge"
 import { CardDescription, CardHeader, CardTitle, Card } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Label } from "@/components/ui/label"
-
 import { cn } from "@/lib/utils"
 import { useMqttTopicConfig } from "@/components/dashboard/useMqttTopicConfig"
 import { useDashboardFarm } from "@/components/dashboard/DashboardFarmContext"
-import {
-  getSubscribeTopicsFromConfig,
-} from "@/lib/mqtt/topicConfig"
 import { useMqttConnection } from "@/components/dashboard/useMqttConnection"
+
+export type ActuatorAreaProps = {
+  /** MQTT 미연결 시 토픽 설정 시트를 연다(브로커 연결·구독은 시트 내 단일 버튼으로 수행). */
+  onOpenMqttTopicSettings?: () => void
+}
 
 /**
  * 액추에이터 제어 영역. LED/Pump/FAN1/FAN2를 ON/OFF 명령으로 MQTT 발행한다.
  */
-export const ActuatorArea: React.FC = () => {
+export const ActuatorArea: React.FC<ActuatorAreaProps> = ({
+  onOpenMqttTopicSettings,
+}) => {
   type ActuatorKey = "led" | "pump" | "fan1" | "fan2"
 
   type ActuatorDef = {
@@ -81,17 +83,13 @@ export const ActuatorArea: React.FC = () => {
     envConfigured,
     lastError,
     isStatusLoading,
-    isConnecting,
-    connect,
   } = useMqttConnection()
-
-  const handleConnect = async () => {
-    await connect(getSubscribeTopicsFromConfig(config))
-  }
 
   const publish = async (topic: string, message: string, key: ActuatorKey) => {
     if (!connected) {
-      toast.error("먼저 MQTT에 연결해 주세요.")
+      toast.error(
+        "[MQTT 토픽 설정]에서 ‘브로커 연결 및 토픽 구독’을 먼저 실행해 주세요.",
+      )
       return
     }
     setSendingKey(key)
@@ -206,10 +204,14 @@ export const ActuatorArea: React.FC = () => {
           <AlertDescription>
             {envConfigured === false
               ? "환경 변수에 MQTT 브로커 정보가 설정되지 않았습니다."
-              : "MQTT에 연결한 뒤에만 액추에이터 제어 버튼을 사용할 수 있습니다."}
+              : "우측 상단 [MQTT 토픽 설정]에서 ‘브로커 연결 및 토픽 구독’으로 연결한 뒤에만 액추에이터 제어 버튼을 사용할 수 있습니다."}
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <Button onClick={() => void handleConnect()} disabled={isConnecting}>
-                {isConnecting ? "연결 중…" : "브로커에 연결"}
+              <Button
+                type="button"
+                onClick={() => onOpenMqttTopicSettings?.()}
+                disabled={!onOpenMqttTopicSettings}
+              >
+                MQTT 토픽 설정 열기
               </Button>
               <Button variant="secondary" asChild>
                 <a href="/dashboard/mqtt-test">MQTT 테스트 화면</a>

@@ -48,7 +48,7 @@ export const DashboardSidebar: React.FC = () => {
     <aside className="sticky top-0 z-30 flex h-screen w-64 shrink-0 flex-col border-r border-border/60 bg-sidebar/50 px-3 py-5 backdrop-blur supports-[backdrop-filter]:bg-sidebar/40">
       <Link
         href="/dashboard"
-        className="mb-8 flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors hover:bg-muted/30"
+        className="mb-5 flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors hover:bg-muted/30"
       >
         <Leaf className="size-7 shrink-0 text-primary" aria-hidden />
         <div className="flex min-w-0 flex-col leading-tight">
@@ -60,6 +60,16 @@ export const DashboardSidebar: React.FC = () => {
           </span>
         </div>
       </Link>
+
+      {/* 농장 선택: 하단 중복을 없애고 좌측 상단(로고 바로 아래)에만 둔다. */}
+      <div className="mb-6 space-y-2 px-0.5">
+        <p className="px-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          현재 농장
+        </p>
+        <div className="w-full [&_button]:border-sidebar-border/80">
+          <DashboardFarmSelect layout="sidebar" />
+        </div>
+      </div>
 
       <nav className="flex flex-1 flex-col gap-1" aria-label="대시보드 메뉴">
         {[...NAV_ITEMS, ...DEV_ONLY_NAV_ITEMS].map(({ href, label, icon: Icon }) => {
@@ -89,15 +99,6 @@ export const DashboardSidebar: React.FC = () => {
       </nav>
 
       <div className="mt-4 space-y-4 border-t border-sidebar-border pt-4">
-        <div className="px-0.5">
-          <p className="mb-2 px-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            농장
-          </p>
-          <div className="w-full [&_button]:border-sidebar-border/80">
-            <DashboardFarmSelect layout="sidebar" />
-          </div>
-        </div>
-
         <div className="px-0.5">
           {isLoading ? (
             <p className="px-2 text-xs text-muted-foreground">인증 확인 중…</p>

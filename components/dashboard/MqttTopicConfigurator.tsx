@@ -115,7 +115,7 @@ export const MqttTopicConfigurator: React.FC = () => {
         return
       }
 
-      toast.success("토픽 설정을 적용하고 서버 구독을 갱신했습니다.")
+      toast.success("브로커에 연결하고 토픽 구독을 갱신했습니다.")
     } finally {
       setIsApplying(false)
     }
@@ -129,7 +129,8 @@ export const MqttTopicConfigurator: React.FC = () => {
           아두이노/기기에서 하드코딩한 토픽 문자열을 웹에서 그대로 입력하세요.
           <span className="text-muted-foreground">
             {" "}
-            (토픽을 적용하면 서버가 해당 토픽으로 subscribe 합니다.)
+            아래 버튼 한 번으로 <strong>MQTT 브로커 연결</strong>과{" "}
+            <strong>입력한 토픽 구독</strong>이 함께 실행됩니다.
           </span>
         </CardDescription>
       </CardHeader>
@@ -167,7 +168,7 @@ export const MqttTopicConfigurator: React.FC = () => {
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <Button onClick={() => void handleApply()} disabled={isApplying}>
-            {isApplying ? "적용 중…" : "토픽 적용(서버 구독 갱신)"}
+            {isApplying ? "연결·구독 적용 중…" : "브로커 연결 및 토픽 구독"}
           </Button>
           <Button
             variant="secondary"
@@ -177,7 +178,9 @@ export const MqttTopicConfigurator: React.FC = () => {
               setDraft(defaults)
               setMqttTopicConfig(defaults, selectedFarmId)
               window.dispatchEvent(new Event(MQTT_TOPIC_CONFIG_CHANGED_EVENT))
-              toast.message("기본 토픽으로 되돌렸습니다. '토픽 적용'을 눌러 서버 구독을 갱신하세요.")
+              toast.message(
+                "기본 토픽으로 되돌렸습니다. '브로커 연결 및 토픽 구독'을 눌러 반영하세요.",
+              )
             }}
           >
             기본값

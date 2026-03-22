@@ -20,14 +20,20 @@ import {
 } from "@/components/ui/select"
 
 import { useMqttTopicConfig } from "@/components/dashboard/useMqttTopicConfig"
-import { getSubscribeTopicsFromConfig } from "@/lib/mqtt/topicConfig"
 import { useDashboardFarm } from "@/components/dashboard/DashboardFarmContext"
 import { useMqttConnection } from "@/components/dashboard/useMqttConnection"
+
+export type SensorAreaProps = {
+  /** MQTT 미연결 시 토픽 설정 시트를 연다(브로커 연결·구독은 시트 내 단일 버튼으로 수행). */
+  onOpenMqttTopicSettings?: () => void
+}
 
 /**
  * 센서 영역. 온도/습도/EC/pH의 현재 게이지와 최근 시계열(라인 차트)을 표시한다.
  */
-const SensorArea: React.FC = () => {
+const SensorArea: React.FC<SensorAreaProps> = ({
+  onOpenMqttTopicSettings,
+}) => {
   type SensorKey = "temperature" | "humidity" | "ec" | "ph"
 
   type SensorDef = {
@@ -143,8 +149,6 @@ const SensorArea: React.FC = () => {
     lastError,
     setLastError,
     isStatusLoading,
-    isConnecting,
-    connect,
   } = useMqttConnection()
   const [isMessagesLoading, setIsMessagesLoading] = React.useState(false)
 
@@ -246,7 +250,7 @@ const SensorArea: React.FC = () => {
         setIsMessagesLoading(false)
       }
     }
-  }, [SENSOR_DEFS, minutesToShow, pointsToShow])
+  }, [SENSOR_DEFS, minutesToShow, pointsToShow, setLastError])
 
   // 토픽 설정 변경 시 상태 갱신은 useMqttConnection 훅에서 자동 처리한다.
 
@@ -265,12 +269,6 @@ const SensorArea: React.FC = () => {
     if (!connected) return
     void fetchMessages({ silent: true })
   }, [pointsToShow, minutesToShow, connected, fetchMessages])
-
-  const handleConnect = async () => {
-    const ok = await connect(getSubscribeTopicsFromConfig(config))
-    if (!ok) return
-    await fetchMessages({ silent: true })
-  }
 
   const renderGaugeCard = (s: SensorDef) => {
     const value = latestValues[s.key]
@@ -469,10 +467,14 @@ const SensorArea: React.FC = () => {
           <AlertDescription>
             {envConfigured === false
               ? "환경 변수에 MQTT 브로커 정보가 설정되지 않았습니다."
-              : "브로커에 연결한 뒤 허용 토픽이 들어오면 게이지와 차트가 갱신됩니다."}
+              : "우측 상단 [MQTT 토픽 설정]에서 토픽을 확인한 뒤, ‘브로커 연결 및 토픽 구독’ 버튼으로 연결과 구독을 한 번에 적용하세요. 메시지가 들어오면 게이지와 차트가 갱신됩니다."}
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <Button onClick={() => void handleConnect()} disabled={isConnecting}>
-                {isConnecting ? "연결 중…" : "브로커에 연결"}
+              <Button
+                type="button"
+                onClick={() => onOpenMqttTopicSettings?.()}
+                disabled={!onOpenMqttTopicSettings}
+              >
+                MQTT 토픽 설정 열기
               </Button>
               <Button variant="secondary" asChild>
                 <a href="/dashboard/mqtt-test">MQTT 테스트 화면</a>
