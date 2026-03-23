@@ -56,11 +56,18 @@ if (!farmId) {
   process.exit(1)
 }
 
-const topics = {
+const legacyTopics = {
   temperature: "smartfarm/sensors/temperature",
   humidity: "smartfarm/sensors/humidity",
   ec: "smartfarm/sensors/ec",
   ph: "smartfarm/sensors/ph",
+}
+
+const farmTopics = {
+  temperature: `smartfarm/${farmId}/sensors/temperature`,
+  humidity: `smartfarm/${farmId}/sensors/humidity`,
+  ec: `smartfarm/${farmId}/sensors/ec`,
+  ph: `smartfarm/${farmId}/sensors/ph`,
 }
 
 // 동일 브로커에 다른 클라이언트가 이미 같은 clientId를 쓰면 연결이 밀릴 수 있음.
@@ -87,7 +94,8 @@ let startAt = Date.now()
 
 client.on("connect", () => {
   console.log(`[MQTT SENSOR TEST] connected: ${clientId}`)
-  console.log(`[MQTT SENSOR TEST] publishing topics:`, topics)
+  console.log(`[MQTT SENSOR TEST] publishing legacy topics:`, legacyTopics)
+  console.log(`[MQTT SENSOR TEST] publishing farm topics:`, farmTopics)
 
   startAt = Date.now()
   if (intervalId) clearInterval(intervalId)
@@ -122,10 +130,15 @@ client.on("connect", () => {
     }
 
     // Promise 없이 “전송 요청만” 보낸다(테스트 목적)
-    client.publish(topics.temperature, payloads.temperature, { qos: 1 })
-    client.publish(topics.humidity, payloads.humidity, { qos: 1 })
-    client.publish(topics.ec, payloads.ec, { qos: 1 })
-    client.publish(topics.ph, payloads.ph, { qos: 1 })
+    client.publish(legacyTopics.temperature, payloads.temperature, { qos: 1 })
+    client.publish(legacyTopics.humidity, payloads.humidity, { qos: 1 })
+    client.publish(legacyTopics.ec, payloads.ec, { qos: 1 })
+    client.publish(legacyTopics.ph, payloads.ph, { qos: 1 })
+
+    client.publish(farmTopics.temperature, payloads.temperature, { qos: 1 })
+    client.publish(farmTopics.humidity, payloads.humidity, { qos: 1 })
+    client.publish(farmTopics.ec, payloads.ec, { qos: 1 })
+    client.publish(farmTopics.ph, payloads.ph, { qos: 1 })
 
     console.log(
       `[MQTT SENSOR TEST] publish temp=${temperature.toFixed(2)}C, hum=${humidity.toFixed(2)}%, ec=${ec.toFixed(

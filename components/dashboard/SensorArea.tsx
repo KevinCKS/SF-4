@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Textarea } from "@/components/ui/textarea"
 
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from "@/components/ui/chart"
 
@@ -27,6 +28,7 @@ import {
   Activity,
   AlertCircle,
   Antenna,
+  Bot,
   Clock,
   Filter,
   Inbox,
@@ -65,7 +67,7 @@ const SensorArea: React.FC = () => {
     max: number
   }
 
-  const { selectedFarmId } = useDashboardFarm()
+  const { selectedFarmId, selectedFarm } = useDashboardFarm()
   const config = useMqttTopicConfig(selectedFarmId)
 
   const SENSOR_META = React.useMemo(
@@ -190,6 +192,15 @@ const SensorArea: React.FC = () => {
   // 차트 표시 범위 옵션 (최근 N분 + 최근 N개 포인트를 동시에 반영)
   const [pointsToShow, setPointsToShow] = React.useState<number>(80)
   const [minutesToShow, setMinutesToShow] = React.useState<number>(10)
+  const [dailySummary, setDailySummary] = React.useState<string | null>(null)
+  const [dailySummaryError, setDailySummaryError] = React.useState<string | null>(null)
+  const [dailySummaryLoading, setDailySummaryLoading] = React.useState(false)
+  const [dailySummaryMeta, setDailySummaryMeta] = React.useState<{
+    dateKst?: string
+    readingsCount?: number
+    thresholdExceededTotal?: number
+  } | null>(null)
+  const isFetchingMessagesRef = React.useRef(false)
 
   // 상태 조회/연결은 useMqttConnection 훅에서 공통 처리한다.
 
@@ -198,6 +209,8 @@ const SensorArea: React.FC = () => {
    * @param options.silent - true 이면 로딩 플래그를 켜지 않음(주기 폴링 시 UI 깜박임 방지)
    */
   const fetchMessages = React.useCallback(async (options?: { silent?: boolean }) => {
+    if (isFetchingMessagesRef.current) return
+    isFetchingMessagesRef.current = true
     const silent = options?.silent === true
     if (!silent) {
       setIsMessagesLoading(true)
@@ -207,6 +220,10 @@ const SensorArea: React.FC = () => {
       const res = await fetch("/api/mqtt/messages", {
         credentials: "include",
         cache: "no-store",
+        signal:
+          typeof AbortSignal !== "undefined" && "timeout" in AbortSignal
+            ? AbortSignal.timeout(4_000)
+            : undefined,
       })
       if (!res.ok) {
         if (res.status === 401) {
@@ -236,10 +253,19 @@ const SensorArea: React.FC = () => {
       }
 
       const topicToKey = new Map<string, SensorKey>()
-      for (const s of SENSOR_DEFS) topicToKey.set(s.topic, s.key)
+      for (const s of SENSOR_DEFS) {
+        topicToKey.set(s.topic, s.key)
+      }
+      const inferSensorKeyFromTopic = (topic: string): SensorKey | null => {
+        if (/\/sensors\/temperature$/i.test(topic)) return "temperature"
+        if (/\/sensors\/humidity$/i.test(topic)) return "humidity"
+        if (/\/sensors\/ec$/i.test(topic)) return "ec"
+        if (/\/sensors\/ph$/i.test(topic)) return "ph"
+        return null
+      }
 
       for (const msg of raw) {
-        const key = topicToKey.get(msg.topic)
+        const key = topicToKey.get(msg.topic) ?? inferSensorKeyFromTopic(msg.topic)
         if (!key) continue
         const value = parseNumericValue(msg.payload)
         if (value === null) continue
@@ -269,8 +295,20 @@ const SensorArea: React.FC = () => {
       setSeries(nextSeries)
       setLatestValues(nextLatest)
     } catch (e) {
-      setLastError(e instanceof Error ? e.message : "MQTT 수신 처리 중 오류가 발생했습니다.")
+      const aborted =
+        e instanceof DOMException
+          ? e.name === "AbortError"
+          : e instanceof Error &&
+            (e.name === "AbortError" || /aborted|timeout|timed out/i.test(e.message))
+      setLastError(
+        aborted
+          ? "센서 데이터 조회가 지연되고 있습니다. 잠시 후 자동으로 다시 시도합니다."
+          : e instanceof Error
+            ? e.message
+            : "MQTT 수신 처리 중 오류가 발생했습니다.",
+      )
     } finally {
+      isFetchingMessagesRef.current = false
       if (!silent) {
         setIsMessagesLoading(false)
       }
@@ -294,6 +332,56 @@ const SensorArea: React.FC = () => {
     if (!connected) return
     void fetchMessages({ silent: true })
   }, [pointsToShow, minutesToShow, connected, fetchMessages])
+
+  React.useEffect(() => {
+    setDailySummary(null)
+    setDailySummaryError(null)
+    setDailySummaryMeta(null)
+  }, [selectedFarmId])
+
+  /**
+   * 선택한 농장의 당일 센서 데이터를 기반으로 AI 일일 요약을 생성한다.
+   */
+  const generateDailySummary = React.useCallback(async () => {
+    if (!selectedFarmId) {
+      setDailySummaryError("농장을 먼저 선택해 주세요.")
+      return
+    }
+    setDailySummaryLoading(true)
+    setDailySummaryError(null)
+    try {
+      const res = await fetch("/api/ai/daily-summary", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ farmId: selectedFarmId }),
+      })
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string
+        summary?: string
+        dateKst?: string
+        readingsCount?: number
+        thresholdExceededTotal?: number
+      }
+      if (!res.ok) {
+        setDailySummaryError(json.error ?? "AI 일일 요약 생성에 실패했습니다.")
+        return
+      }
+      setDailySummary(json.summary ?? "요약 결과가 비어 있습니다.")
+      setDailySummaryMeta({
+        dateKst: json.dateKst,
+        readingsCount: json.readingsCount,
+        thresholdExceededTotal: json.thresholdExceededTotal,
+      })
+    } catch (e) {
+      setDailySummaryError(
+        e instanceof Error ? e.message : "AI 일일 요약 생성 중 오류가 발생했습니다.",
+      )
+    } finally {
+      setDailySummaryLoading(false)
+    }
+  }, [selectedFarmId])
 
   /**
    * 게이지 카드에 표시할 측정값 문자열(소수 둘째 자리 고정).
@@ -622,6 +710,57 @@ const SensorArea: React.FC = () => {
             </Select>
           </div>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-border/80 bg-card/85 p-4 shadow-md shadow-black/25 ring-1 ring-white/10 backdrop-blur-md">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <p className="flex items-center gap-2 text-base font-semibold tracking-tight">
+              <Bot className="size-4 shrink-0 text-primary" aria-hidden />
+              AI 일일 요약
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {selectedFarm?.name
+                ? `${selectedFarm.name}의 당일 sensor_readings를 기반으로 요약합니다.`
+                : "농장을 선택하면 당일 요약을 생성할 수 있습니다."}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void generateDailySummary()}
+            disabled={!selectedFarmId || dailySummaryLoading}
+          >
+            {dailySummaryLoading ? "요약 생성 중..." : "AI 요약 생성"}
+          </Button>
+        </div>
+
+        {dailySummaryError ? (
+          <Alert variant="destructive" className="mt-3">
+            <AlertCircle className="size-4" aria-hidden />
+            <AlertTitle>AI 요약 오류</AlertTitle>
+            <AlertDescription>{dailySummaryError}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        {dailySummary ? (
+          <div className="mt-3 space-y-2">
+            <div className="text-xs text-muted-foreground">
+              {dailySummaryMeta?.dateKst ? `기준일(KST): ${dailySummaryMeta.dateKst}` : null}
+              {typeof dailySummaryMeta?.readingsCount === "number"
+                ? ` · 측정 ${dailySummaryMeta.readingsCount}건`
+                : null}
+              {typeof dailySummaryMeta?.thresholdExceededTotal === "number"
+                ? ` · 임계치 초과 ${dailySummaryMeta.thresholdExceededTotal}건`
+                : null}
+            </div>
+            <Textarea
+              value={dailySummary}
+              readOnly
+              className="min-h-24 resize-y bg-background/40 text-sm leading-relaxed"
+            />
+          </div>
+        ) : null}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 xl:gap-5">
