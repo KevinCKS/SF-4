@@ -334,7 +334,7 @@ const SensorArea: React.FC = () => {
         {/* 측정값: 카드 너비(cqi)에 맞춰 한 줄에서 가능한 한 크게 */}
         <p
           className={cn(
-            "mt-2 block w-full whitespace-nowrap text-[clamp(1.35rem,28cqi,5rem)] font-bold tabular-nums tracking-tight leading-none",
+            "mt-2 block w-full whitespace-nowrap text-[clamp(0.86rem,18cqi,3.15rem)] font-bold tabular-nums tracking-tight leading-none",
             showValue === null && "font-semibold text-muted-foreground",
           )}
           style={
