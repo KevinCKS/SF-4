@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
   Antenna,
+  Database,
   LayoutDashboard,
   Leaf,
   LogOut,
@@ -37,6 +38,7 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "대시보드", icon: LayoutDashboard },
+  { href: "/dashboard/alerts", label: "DB 테이블", icon: Database },
   { href: "/dashboard/farms", label: "농장 관리", icon: Warehouse },
 ]
 

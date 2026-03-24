@@ -1,3 +1,4 @@
+import { checkThresholdAndAlert } from "@/lib/mqtt/alertService"
 import type { SensorTopicKey } from "@/lib/mqtt/topicConfig"
 import { getSupabaseServiceRoleClient } from "@/lib/supabaseServiceRole"
 
@@ -178,20 +179,36 @@ const insertReading = async (input: {
   sensorId: string
   value: number
   recordedAtIso: string
-}): Promise<void> => {
+}): Promise<string | null> => {
   const supabase = getSupabaseServiceRoleClient()
-  if (!supabase) return
+  if (!supabase) return null
 
-  const { error } = await supabase.from("sensor_readings").insert({
-    sensor_id: input.sensorId,
+  const { data, error } = await supabase
+    .from("sensor_readings")
+    .insert({
+      sensor_id: input.sensorId,
+      value: input.value,
+      recorded_at: input.recordedAtIso,
+    })
+    .select("id")
+    .single()
+
+  if (error) {
+    if (process.env.NODE_ENV === "development") {
+      // eslint-disable-next-line no-console
+      console.error("[sensorPersist] sensor_readings 삽입 오류:", error.message)
+    }
+    return null
+  }
+
+  // 임계치 체크 및 알림 로그 생성 호출
+  void checkThresholdAndAlert({
+    sensorId: input.sensorId,
     value: input.value,
-    recorded_at: input.recordedAtIso,
+    readingId: data?.id,
   })
 
-  if (error && process.env.NODE_ENV === "development") {
-    // eslint-disable-next-line no-console
-    console.error("[sensorPersist] sensor_readings 삽입 오류:", error.message)
-  }
+  return data?.id ?? null
 }
 
 /**

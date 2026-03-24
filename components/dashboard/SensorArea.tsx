@@ -20,6 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+import { AlertSettingsCard } from "@/components/dashboard/AlertSettingsCard"
+import { SENSOR_SECTION_SURFACE_CLASS } from "@/components/dashboard/sensorSectionSurface"
 import { useMqttTopicConfig } from "@/components/dashboard/useMqttTopicConfig"
 import { useDashboardFarm } from "@/components/dashboard/DashboardFarmContext"
 import { useMqttConnection } from "@/components/dashboard/useMqttConnection"
@@ -37,7 +39,6 @@ import {
   TestTube,
   Thermometer,
   Droplets,
-  WifiOff,
 } from "lucide-react"
 
 /**
@@ -166,7 +167,6 @@ const SensorArea: React.FC = () => {
 
   const {
     connected,
-    envConfigured,
     lastError,
     setLastError,
     isStatusLoading,
@@ -599,32 +599,6 @@ const SensorArea: React.FC = () => {
         </div>
       ) : null}
 
-      {!isStatusLoading && !connected ? (
-        <Alert className="px-3 py-3 text-lg">
-          <WifiOff className="size-5" aria-hidden />
-          <AlertTitle>MQTT 연결 필요</AlertTitle>
-          <AlertDescription>
-            {envConfigured === false
-              ? "환경 변수에 MQTT 브로커 정보가 설정되지 않았습니다."
-              : "우측 상단 [MQTT 토픽 설정]에서 토픽을 확인한 뒤, ‘브로커 연결 및 토픽 구독’ 버튼으로 연결과 구독을 한 번에 적용하세요. 메시지가 들어오면 게이지와 차트가 갱신됩니다."}
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <Button variant="secondary" asChild>
-                <a
-                  href="/dashboard/mqtt-test"
-                  className="inline-flex items-center gap-2"
-                >
-                  <Antenna className="size-4 shrink-0" aria-hidden />
-                  MQTT 테스트 화면
-                </a>
-              </Button>
-            </div>
-            {lastError ? (
-              <p className="mt-3 text-sm leading-snug text-destructive">{lastError}</p>
-            ) : null}
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
       {connected && !isMessagesLoading && !lastError ? (
         (() => {
           const hasAnyData = Object.values(series).some((pts) => pts.length > 0)
@@ -662,113 +636,120 @@ const SensorArea: React.FC = () => {
         </Alert>
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <Label className="flex items-center gap-2 text-sm font-medium">
-          <Filter className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-          필터 우선순위(시간 → 갯수)
-        </Label>
-
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          {/* 시간 우선 */}
-          <div className="min-w-[12rem]">
-            <Select
-              value={String(minutesToShow)}
-              onValueChange={(v) => setMinutesToShow(Number(v))}
-            >
-              <SelectTrigger className="h-9 min-h-9 gap-2 text-sm">
-                <Clock className="size-3.5 shrink-0 opacity-70" aria-hidden />
-                <SelectValue placeholder="1단계: 최근 N분" />
-              </SelectTrigger>
-              <SelectContent className="text-sm">
-                <SelectItem value="5">최근 5분</SelectItem>
-                <SelectItem value="10">최근 10분</SelectItem>
-                <SelectItem value="20">최근 20분</SelectItem>
-                <SelectItem value="30">최근 30분</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* 갯수(최종 컷) */}
-          <div className="min-w-[12rem]">
-            <Select
-              value={String(pointsToShow)}
-              onValueChange={(v) => setPointsToShow(Number(v))}
-            >
-              <SelectTrigger className="h-9 min-h-9 gap-2 text-sm">
-                <ListOrdered
-                  className="size-3.5 shrink-0 opacity-70"
-                  aria-hidden
-                />
-                <SelectValue placeholder="2단계: 최근 N개" />
-              </SelectTrigger>
-              <SelectContent className="text-sm">
-                <SelectItem value="30">최근 30개</SelectItem>
-                <SelectItem value="60">최근 60개</SelectItem>
-                <SelectItem value="80">최근 80개</SelectItem>
-                <SelectItem value="120">최근 120개</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border/80 bg-card/85 p-4 shadow-md shadow-black/25 ring-1 ring-white/10 backdrop-blur-md">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <p className="flex items-center gap-2 text-base font-semibold tracking-tight">
-              <Bot className="size-4 shrink-0 text-primary" aria-hidden />
-              AI 일일 요약
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {selectedFarm?.name
-                ? `${selectedFarm.name}의 당일 sensor_readings를 기반으로 요약합니다.`
-                : "농장을 선택하면 당일 요약을 생성할 수 있습니다."}
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => void generateDailySummary()}
-            disabled={!selectedFarmId || dailySummaryLoading}
-          >
-            {dailySummaryLoading ? "요약 생성 중..." : "AI 요약 생성"}
-          </Button>
+      {/* 게이지 값 → 표시 범위 → 추이 차트 → 알림 임계치 → AI 요약 */}
+      <div className="space-y-5">
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          {SENSOR_DEFS.map((s) => renderGaugeCard(s))}
         </div>
 
-        {dailySummaryError ? (
-          <Alert variant="destructive" className="mt-3">
-            <AlertCircle className="size-4" aria-hidden />
-            <AlertTitle>AI 요약 오류</AlertTitle>
-            <AlertDescription>{dailySummaryError}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        {dailySummary ? (
-          <div className="mt-3 space-y-2">
-            <div className="text-xs text-muted-foreground">
-              {dailySummaryMeta?.dateKst ? `기준일(KST): ${dailySummaryMeta.dateKst}` : null}
-              {typeof dailySummaryMeta?.readingsCount === "number"
-                ? ` · 측정 ${dailySummaryMeta.readingsCount}건`
-                : null}
-              {typeof dailySummaryMeta?.thresholdExceededTotal === "number"
-                ? ` · 임계치 초과 ${dailySummaryMeta.thresholdExceededTotal}건`
-                : null}
+        <div className={SENSOR_SECTION_SURFACE_CLASS}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <Label className="flex min-w-0 items-center gap-2 text-base font-semibold tracking-tight text-foreground">
+              <Filter className="size-4 shrink-0 text-primary" aria-hidden />
+              차트·게이지 표시 범위
+            </Label>
+            <p className="text-xs text-muted-foreground sm:text-right">
+              시간 창을 먼저 적용한 뒤, 그 안에서 최근 N개만 표시합니다.
+            </p>
+          </div>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+            <div className="min-w-[12rem] sm:max-w-[14rem]">
+              <Select
+                value={String(minutesToShow)}
+                onValueChange={(v) => setMinutesToShow(Number(v))}
+              >
+                <SelectTrigger className="h-9 min-h-9 gap-2 text-sm">
+                  <Clock className="size-3.5 shrink-0 opacity-70" aria-hidden />
+                  <SelectValue placeholder="최근 N분" />
+                </SelectTrigger>
+                <SelectContent className="text-sm">
+                  <SelectItem value="5">최근 5분</SelectItem>
+                  <SelectItem value="10">최근 10분</SelectItem>
+                  <SelectItem value="20">최근 20분</SelectItem>
+                  <SelectItem value="30">최근 30분</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Textarea
-              value={dailySummary}
-              readOnly
-              className="min-h-24 resize-y bg-background/40 text-sm leading-relaxed"
-            />
+            <div className="min-w-[12rem] sm:max-w-[14rem]">
+              <Select
+                value={String(pointsToShow)}
+                onValueChange={(v) => setPointsToShow(Number(v))}
+              >
+                <SelectTrigger className="h-9 min-h-9 gap-2 text-sm">
+                  <ListOrdered
+                    className="size-3.5 shrink-0 opacity-70"
+                    aria-hidden
+                  />
+                  <SelectValue placeholder="최근 N개" />
+                </SelectTrigger>
+                <SelectContent className="text-sm">
+                  <SelectItem value="30">최근 30개</SelectItem>
+                  <SelectItem value="60">최근 60개</SelectItem>
+                  <SelectItem value="80">최근 80개</SelectItem>
+                  <SelectItem value="120">최근 120개</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        ) : null}
-      </div>
+        </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 xl:gap-5">
-        {SENSOR_DEFS.map((s) => renderGaugeCard(s))}
-      </div>
+        <div className="grid gap-5 md:grid-cols-2">
+          {SENSOR_DEFS.map((s) => renderMiniChart(s))}
+        </div>
 
-      <div className="grid gap-5 md:grid-cols-2 md:gap-6">
-        {SENSOR_DEFS.map((s) => renderMiniChart(s))}
+        <AlertSettingsCard />
+
+        <div className={SENSOR_SECTION_SURFACE_CLASS}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 space-y-1">
+              <p className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
+                <Bot className="size-4 shrink-0 text-primary" aria-hidden />
+                AI 일일 요약
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {selectedFarm?.name
+                  ? `${selectedFarm.name}의 당일 sensor_readings를 기반으로 요약합니다.`
+                  : "농장을 선택하면 당일 요약을 생성할 수 있습니다."}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              className="shrink-0"
+              onClick={() => void generateDailySummary()}
+              disabled={!selectedFarmId || dailySummaryLoading}
+            >
+              {dailySummaryLoading ? "요약 생성 중..." : "AI 요약 생성"}
+            </Button>
+          </div>
+
+          {dailySummaryError ? (
+            <Alert variant="destructive" className="mt-4">
+              <AlertCircle className="size-4" aria-hidden />
+              <AlertTitle>AI 요약 오류</AlertTitle>
+              <AlertDescription>{dailySummaryError}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          {dailySummary ? (
+            <div className="mt-4 space-y-2">
+              <div className="text-xs text-muted-foreground">
+                {dailySummaryMeta?.dateKst ? `기준일(KST): ${dailySummaryMeta.dateKst}` : null}
+                {typeof dailySummaryMeta?.readingsCount === "number"
+                  ? ` · 측정 ${dailySummaryMeta.readingsCount}건`
+                  : null}
+                {typeof dailySummaryMeta?.thresholdExceededTotal === "number"
+                  ? ` · 임계치 초과 ${dailySummaryMeta.thresholdExceededTotal}건`
+                  : null}
+              </div>
+              <Textarea
+                value={dailySummary}
+                readOnly
+                className="min-h-24 resize-y bg-background/40 text-sm leading-relaxed"
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   )

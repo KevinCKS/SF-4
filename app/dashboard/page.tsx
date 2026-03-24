@@ -41,6 +41,10 @@ import {
   Zap,
 } from "lucide-react"
 
+/** 센서·액추 카드 제목을 DB 테이블 활성 탭과 같은 알약형으로 두드러지게 한다. */
+const DASHBOARD_SECTION_TITLE_PILL_CLASS =
+  "inline-flex items-center gap-2 rounded-lg border border-primary/45 bg-white/[0.06] px-4 py-2.5 text-2xl font-semibold tracking-tight text-foreground shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] [&_svg]:shrink-0 [&_svg]:text-foreground"
+
 /**
  * 대시보드 메인: 센서 영역과 액추에이터 영역 레이아웃.
  */
@@ -251,9 +255,11 @@ const DashboardPage: React.FC = () => {
       <div className="mt-6 grid gap-6 lg:grid-cols-2 lg:gap-8 xl:gap-10">
         <Card className="border-border/80 bg-card/90 shadow-lg shadow-black/25 ring-1 ring-white/10 backdrop-blur-md">
           <CardHeader className="pb-3 pt-4">
-            <CardTitle className="flex items-center gap-2 text-2xl">
-              <Cpu className="size-7 shrink-0 text-primary" aria-hidden />
-              센서
+            <CardTitle className="p-0 leading-none">
+              <span className={DASHBOARD_SECTION_TITLE_PILL_CLASS}>
+                <Cpu className="size-7" aria-hidden />
+                센서
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent className="px-5 pt-0 sm:px-6">
@@ -263,9 +269,11 @@ const DashboardPage: React.FC = () => {
 
         <Card className="border-border/80 bg-card/90 shadow-lg shadow-black/25 ring-1 ring-white/10 backdrop-blur-md">
           <CardHeader className="pb-3 pt-4">
-            <CardTitle className="flex items-center gap-2 text-2xl">
-              <Zap className="size-7 shrink-0 text-primary" aria-hidden />
-              액추에이터
+            <CardTitle className="p-0 leading-none">
+              <span className={DASHBOARD_SECTION_TITLE_PILL_CLASS}>
+                <Zap className="size-7" aria-hidden />
+                액추에이터
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent className="px-5 pt-0 sm:px-6">

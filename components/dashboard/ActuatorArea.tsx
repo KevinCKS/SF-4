@@ -10,14 +10,21 @@ import { Badge } from "@/components/ui/badge"
 import { CardHeader, CardTitle, Card } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { cn } from "@/lib/utils"
 import {
   AlertCircle,
-  Antenna,
   Fan,
+  History,
   Lightbulb,
   Droplets,
-  WifiOff,
 } from "lucide-react"
 import { useMqttTopicConfig } from "@/components/dashboard/useMqttTopicConfig"
 import { useDashboardFarm } from "@/components/dashboard/DashboardFarmContext"
@@ -100,10 +107,58 @@ export const ActuatorArea: React.FC = () => {
 
   const {
     connected,
-    envConfigured,
     lastError,
     isStatusLoading,
   } = useMqttConnection()
+
+  type CommandLogRow = {
+    id: string
+    actuator_key: string
+    topic: string
+    payload: string
+    created_at: string
+  }
+
+  const [commandLogs, setCommandLogs] = React.useState<CommandLogRow[]>([])
+  const [logsLoading, setLogsLoading] = React.useState(false)
+  const [logsError, setLogsError] = React.useState<string | null>(null)
+
+  const actuatorLabel = (key: string): string =>
+    ACTUATOR_META.find((m) => m.key === key)?.label ?? key
+
+  const fetchCommandLogs = React.useCallback(async () => {
+    if (!selectedFarmId) {
+      setCommandLogs([])
+      return
+    }
+    setLogsLoading(true)
+    setLogsError(null)
+    try {
+      const res = await fetch(
+        `/api/actuator-commands?farmId=${encodeURIComponent(selectedFarmId)}&limit=20`,
+        { credentials: "include", cache: "no-store" },
+      )
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string
+        logs?: CommandLogRow[]
+      }
+      if (!res.ok) {
+        setLogsError(json.error ?? "제어 이력을 불러오지 못했습니다.")
+        setCommandLogs([])
+        return
+      }
+      setCommandLogs(Array.isArray(json.logs) ? json.logs : [])
+    } catch (e) {
+      setLogsError(e instanceof Error ? e.message : "제어 이력 조회 오류")
+      setCommandLogs([])
+    } finally {
+      setLogsLoading(false)
+    }
+  }, [selectedFarmId])
+
+  React.useEffect(() => {
+    void fetchCommandLogs()
+  }, [fetchCommandLogs])
 
   const publish = async (topic: string, message: string, key: ActuatorKey) => {
     if (!connected) {
@@ -118,7 +173,13 @@ export const ActuatorArea: React.FC = () => {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, message }),
+        body: JSON.stringify({
+          topic,
+          message,
+          ...(selectedFarmId
+            ? { farmId: selectedFarmId, actuatorKey: key }
+            : {}),
+        }),
       })
 
       const json = await res.json().catch(() => ({}))
@@ -135,6 +196,7 @@ export const ActuatorArea: React.FC = () => {
 
       setLastState((prev) => ({ ...prev, [key]: message === "on" ? "on" : "off" }))
       toast.success(`${key.toUpperCase()} ${message.toUpperCase()} 발행 완료`)
+      if (selectedFarmId) void fetchCommandLogs()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "MQTT 발행 중 오류가 발생했습니다.")
     } finally {
@@ -225,31 +287,9 @@ export const ActuatorArea: React.FC = () => {
             <Skeleton className="h-[180px]" />
           </div>
         </div>
-      ) : !connected ? (
-        <Alert className="px-3 py-3 text-lg">
-          <WifiOff className="size-5" aria-hidden />
-          <AlertTitle>MQTT 연결 필요</AlertTitle>
-          <AlertDescription>
-            {envConfigured === false
-              ? "환경 변수에 MQTT 브로커 정보가 설정되지 않았습니다."
-              : "우측 상단 [MQTT 토픽 설정]에서 ‘브로커 연결 및 토픽 구독’으로 연결한 뒤에만 액추에이터 제어 버튼을 사용할 수 있습니다."}
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <Button variant="secondary" asChild>
-                <a
-                  href="/dashboard/mqtt-test"
-                  className="inline-flex items-center gap-2"
-                >
-                  <Antenna className="size-4 shrink-0" aria-hidden />
-                  MQTT 테스트 화면
-                </a>
-              </Button>
-            </div>
-            {lastError ? (
-              <p className="mt-3 text-sm leading-snug text-destructive">{lastError}</p>
-            ) : null}
-          </AlertDescription>
-        </Alert>
-      ) : lastError ? (
+      ) : null}
+
+      {!isStatusLoading && connected && lastError ? (
         <Alert variant="destructive" className="px-3 py-3 text-lg">
           <AlertCircle className="size-5" aria-hidden />
           <AlertTitle>오류</AlertTitle>
@@ -260,6 +300,77 @@ export const ActuatorArea: React.FC = () => {
       <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
         {ACTUATORS.map(renderActuatorCard)}
       </div>
+
+      {selectedFarmId ? (
+        <div className="rounded-xl border border-border/80 bg-card/85 p-4 shadow-md shadow-black/25 ring-1 ring-white/10 backdrop-blur-md sm:p-5">
+          <div className="mb-3 flex items-center gap-2 text-base font-semibold tracking-tight">
+            <History className="size-4 shrink-0 text-primary" aria-hidden />
+            최근 제어 이력
+            <span className="text-xs font-normal text-muted-foreground">
+              (최대 20건 · 서버에 기록된 성공 발행만)
+            </span>
+          </div>
+          {logsLoading ? (
+            <Skeleton className="h-24 w-full" />
+          ) : logsError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="size-4" aria-hidden />
+              <AlertTitle>이력 조회 오류</AlertTitle>
+              <AlertDescription className="text-sm">
+                {logsError}
+                {/actuator_command_logs|relation|does not exist/i.test(logsError)
+                  ? " Supabase에서 docs/sql/7.6_actuator_command_logs.sql 을 실행했는지 확인해 주세요."
+                  : null}
+              </AlertDescription>
+            </Alert>
+          ) : commandLogs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              아직 서버에 저장된 제어 기록이 없습니다. ON/OFF 발행이 성공하면 여기에 표시됩니다.
+            </p>
+          ) : (
+            <div className="max-h-[280px] overflow-auto rounded-md border border-border/60">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[10rem] whitespace-nowrap">시각</TableHead>
+                    <TableHead className="w-[5.5rem]">장치</TableHead>
+                    <TableHead className="w-[3.5rem]">명령</TableHead>
+                    <TableHead>토픽</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {commandLogs.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell className="whitespace-nowrap text-[1.125rem] tabular-nums leading-snug text-muted-foreground">
+                        {new Date(row.created_at).toLocaleString("ko-KR", {
+                          month: "2-digit",
+                          day: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          second: "2-digit",
+                          hour12: false,
+                        })}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {actuatorLabel(row.actuator_key)}
+                      </TableCell>
+                      <TableCell className="text-sm font-medium uppercase">
+                        {row.payload}
+                      </TableCell>
+                      <TableCell
+                        className="max-w-[12rem] truncate text-[1.125rem] leading-snug text-muted-foreground"
+                        title={row.topic}
+                      >
+                        {row.topic}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
   )
 }

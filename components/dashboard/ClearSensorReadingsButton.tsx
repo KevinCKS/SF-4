@@ -72,11 +72,20 @@ export const ClearSensorReadingsButton: React.FC<ClearSensorReadingsButtonProps>
       }
 
       const n = json.deletedCount ?? 0
-      toast.success(
-        n > 0
-          ? `sensor_readings ${n.toLocaleString("ko-KR")}건을 삭제했습니다.`
-          : (json.message ?? "삭제할 기록이 없습니다."),
-      )
+      const alertN = json.alertLogsDeletedCount ?? 0
+      
+      let successMsg = ""
+      if (n > 0 && alertN > 0) {
+        successMsg = `센서 데이터 ${n.toLocaleString("ko-KR")}건과 알림 로그 ${alertN.toLocaleString("ko-KR")}건을 삭제했습니다.`
+      } else if (n > 0) {
+        successMsg = `센서 데이터 ${n.toLocaleString("ko-KR")}건을 삭제했습니다.`
+      } else if (alertN > 0) {
+        successMsg = `알림 로그 ${alertN.toLocaleString("ko-KR")}건을 삭제했습니다.`
+      } else {
+        successMsg = json.message ?? "삭제할 기록이 없습니다."
+      }
+
+      toast.success(successMsg)
       setOpen(false)
     } catch (e) {
       const aborted =
@@ -100,8 +109,8 @@ export const ClearSensorReadingsButton: React.FC<ClearSensorReadingsButtonProps>
 
   const scopeLabel =
     farmId != null && farmId !== ""
-      ? "선택한 농장에 연결된 센서의"
-      : "내 계정 농장에 속한 센서의"
+      ? "선택한 농장에 연결된 센서 데이터와 알림 로그를"
+      : "내 계정 농장에 속한 센서 데이터와 알림 로그를"
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
@@ -114,14 +123,14 @@ export const ClearSensorReadingsButton: React.FC<ClearSensorReadingsButtonProps>
           disabled={isPending}
         >
           <Trash2 className="size-3.5 shrink-0" aria-hidden />
-          sensor_readings 비우기
+          데이터 비우기
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent className="sm:max-w-md">
         <AlertDialogHeader>
-          <AlertDialogTitle>sensor_readings 삭제</AlertDialogTitle>
+          <AlertDialogTitle>데이터 삭제</AlertDialogTitle>
           <AlertDialogDescription className="text-left sm:text-left">
-            {scopeLabel} sensor_readings 데이터를 모두 삭제합니다. 복구할 수 없습니다.
+            {scopeLabel} 모두 삭제합니다. 복구할 수 없습니다.
             계속하시겠습니까?
           </AlertDialogDescription>
         </AlertDialogHeader>

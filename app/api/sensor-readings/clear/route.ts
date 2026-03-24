@@ -5,6 +5,7 @@ import {
   requireUser,
   toInternalErrorResponse,
 } from "@/lib/api/server"
+import { getSupabaseServiceRoleClient } from "@/lib/supabaseServiceRole"
 
 export const dynamic = "force-dynamic"
 
@@ -14,7 +15,7 @@ type ClearBody = {
 }
 
 /**
- * Supabase `sensor_readings` 중, 로그인 사용자의 농장·센서에 해당하는 행만 삭제한다(RLS와 동일 범위).
+ * Supabase `sensor_readings` 및 `alert_logs` 중, 로그인 사용자의 농장·센서에 해당하는 행만 삭제한다.
  */
 export async function POST(request: Request) {
   try {
@@ -76,6 +77,7 @@ export async function POST(request: Request) {
       })
     }
 
+    // 1. 해당 농장들에 속한 모든 센서 ID 조회
     const { data: sensors, error: sensorsErr } = await supabase
       .from("sensors")
       .select("id")
@@ -89,51 +91,79 @@ export async function POST(request: Request) {
     }
 
     const sensorIds = (sensors ?? []).map((s) => s.id as string)
-    if (sensorIds.length === 0) {
-      return NextResponse.json({
-        success: true,
-        deletedCount: 0,
-        message: "삭제할 센서가 없습니다.",
-      })
+
+    // RLS로 alert_logs DELETE가 막혀 있을 수 있어, 본인 농장 검증 후에는 서비스 롤로 삭제한다(키 없으면 세션 클라이언트).
+    const admin = getSupabaseServiceRoleClient()
+    const dbWrite = admin ?? supabase
+
+    // 2. 해당 농장 또는 센서들에 연결된 모든 알림 설정 ID 조회
+    const { data: settingsByFarm } = await dbWrite
+      .from("alert_settings")
+      .select("id")
+      .in("farm_id", farmIds)
+
+    let settingsBySensor: { id: string }[] | null = null
+    if (sensorIds.length > 0) {
+      const r = await dbWrite
+        .from("alert_settings")
+        .select("id")
+        .in("sensor_id", sensorIds)
+      settingsBySensor = r.data ?? null
     }
 
-    /** `.in()` 목록이 길어질 때를 대비해 센서 ID를 나눠 삭제한다. */
-    const chunkSize = 120
-    let deletedCount = 0
+    const allSettingIds = Array.from(
+      new Set([
+        ...(settingsByFarm ?? []).map((s) => s.id),
+        ...(settingsBySensor ?? []).map((s) => s.id),
+      ]),
+    )
 
-    for (let i = 0; i < sensorIds.length; i += chunkSize) {
-      const chunk = sensorIds.slice(i, i + chunkSize)
+    let alertLogsDeletedCount = 0
+    if (allSettingIds.length > 0) {
+      const { count, error: alertDelErr } = await dbWrite
+        .from("alert_logs")
+        .delete({ count: "exact" })
+        .in("alert_setting_id", allSettingIds)
 
-      const { count: chunkCount, error: countErr } = await supabase
-        .from("sensor_readings")
-        .select("*", { count: "exact", head: true })
-        .in("sensor_id", chunk)
-
-      if (countErr) {
+      if (!alertDelErr) {
+        alertLogsDeletedCount = count ?? 0
+      } else {
+        console.error("[Clear] alert_logs 삭제 실패:", alertDelErr.message)
         return NextResponse.json(
-          { error: "삭제 대상 건수를 확인하지 못했습니다.", details: countErr.message },
-          { status: 400 },
-        )
-      }
-
-      const { error: delErr } = await supabase
-        .from("sensor_readings")
-        .delete()
-        .in("sensor_id", chunk)
-
-      if (delErr) {
-        return NextResponse.json(
-          { error: "sensor_readings 삭제에 실패했습니다.", details: delErr.message },
+          {
+            error: "알림 로그를 삭제하지 못했습니다.",
+            details: alertDelErr.message,
+          },
           { status: 500 },
         )
       }
+    }
 
-      deletedCount += chunkCount ?? 0
+    let deletedCount = 0
+    if (sensorIds.length > 0) {
+      const { count, error: delErr } = await dbWrite
+        .from("sensor_readings")
+        .delete({ count: "exact" })
+        .in("sensor_id", sensorIds)
+
+      if (!delErr) {
+        deletedCount += count ?? 0
+      } else {
+        console.error("[Clear] sensor_readings 삭제 실패:", delErr.message)
+        return NextResponse.json(
+          {
+            error: "센서 측정 기록을 삭제하지 못했습니다.",
+            details: delErr.message,
+          },
+          { status: 500 },
+        )
+      }
     }
 
     return NextResponse.json({
       success: true,
       deletedCount,
+      alertLogsDeletedCount,
     })
   } catch (e) {
     return toInternalErrorResponse(e)
