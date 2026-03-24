@@ -15,7 +15,8 @@ type ClearBody = {
 }
 
 /**
- * Supabase `sensor_readings` 및 `alert_logs` 중, 로그인 사용자의 농장·센서에 해당하는 행만 삭제한다.
+ * Supabase `sensor_readings`·`alert_logs`·`actuator_command_logs` 중,
+ * 로그인 사용자의 농장(및 소속 센서)에 해당하는 행만 삭제한다.
  */
 export async function POST(request: Request) {
   try {
@@ -160,10 +161,33 @@ export async function POST(request: Request) {
       }
     }
 
+    let actuatorCommandLogsDeletedCount = 0
+    const { count: actuatorCount, error: actuatorDelErr } = await dbWrite
+      .from("actuator_command_logs")
+      .delete({ count: "exact" })
+      .in("farm_id", farmIds)
+
+    if (!actuatorDelErr) {
+      actuatorCommandLogsDeletedCount = actuatorCount ?? 0
+    } else {
+      console.error(
+        "[Clear] actuator_command_logs 삭제 실패:",
+        actuatorDelErr.message,
+      )
+      return NextResponse.json(
+        {
+          error: "액추에이터 제어 기록을 삭제하지 못했습니다.",
+          details: actuatorDelErr.message,
+        },
+        { status: 500 },
+      )
+    }
+
     return NextResponse.json({
       success: true,
       deletedCount,
       alertLogsDeletedCount,
+      actuatorCommandLogsDeletedCount,
     })
   } catch (e) {
     return toInternalErrorResponse(e)

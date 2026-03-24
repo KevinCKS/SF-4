@@ -440,7 +440,7 @@ const SensorArea: React.FC = () => {
           {formatGaugeValueText(showValue, s.unit)}
         </p>
         <div className="mt-3 space-y-1">
-          <div className="flex justify-between gap-2 px-0.5 text-[10px] tabular-nums leading-none text-muted-foreground">
+          <div className="flex justify-between gap-2 px-0.5 text-[14px] tabular-nums leading-none text-muted-foreground">
             <span className="min-w-0 shrink truncate">
               {formatRangeEndLabel(s.min, s.unit)}
             </span>

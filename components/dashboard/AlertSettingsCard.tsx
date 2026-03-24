@@ -5,6 +5,7 @@ import {
   Plus,
   Trash2,
   Save,
+  Pencil,
   AlertCircle,
   CheckCircle2,
   Loader2,
@@ -46,14 +47,19 @@ type AlertSettingsCardProps = {
   className?: string
 }
 
+/** 평상시는 목록만 두고, 추가/편집 시에만 상세 폼을 연다. */
+type EditorTarget = null | { mode: "new" } | { mode: "edit"; id: string }
+
 /**
- * 농장/센서별 알림 임계치 설정 카드 컴포넌트
+ * 농장·센서별 알림 임계치 설정 카드. 평소에는 한 줄 요약 목록만 보이고,
+ * 설정 추가 또는 편집 시에만 상세 입력 폼을 연다.
  */
 export const AlertSettingsCard: React.FC<AlertSettingsCardProps> = ({
   className,
 }) => {
   const { selectedFarmId, selectedFarm } = useDashboardFarm()
   const [settings, setSettings] = React.useState<AlertSetting[]>([])
+  const [editorTarget, setEditorTarget] = React.useState<EditorTarget>(null)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [success, setSuccess] = React.useState<string | null>(null)
@@ -90,6 +96,10 @@ export const AlertSettingsCard: React.FC<AlertSettingsCardProps> = ({
   }, [selectedFarmId])
 
   React.useEffect(() => {
+    setEditorTarget(null)
+  }, [selectedFarmId])
+
+  React.useEffect(() => {
     if (selectedFarmId) {
       fetchSettings()
       fetchSensors()
@@ -98,6 +108,11 @@ export const AlertSettingsCard: React.FC<AlertSettingsCardProps> = ({
 
   const handleAddSetting = () => {
     if (!selectedFarmId) return
+    const draftIdx = settings.findIndex((s) => !s.id)
+    if (draftIdx >= 0) {
+      setEditorTarget({ mode: "new" })
+      return
+    }
     const newSetting: AlertSetting = {
       farm_id: selectedFarmId,
       sensor_id: null,
@@ -107,6 +122,35 @@ export const AlertSettingsCard: React.FC<AlertSettingsCardProps> = ({
       is_active: true,
     }
     setSettings([newSetting, ...settings])
+    setEditorTarget({ mode: "new" })
+  }
+
+  const cancelEditor = () => {
+    if (editorTarget?.mode === "new") {
+      const idx = settings.findIndex((s) => !s.id)
+      if (idx >= 0) {
+        const next = [...settings]
+        next.splice(idx, 1)
+        setSettings(next)
+      }
+    } else if (editorTarget?.mode === "edit") {
+      void fetchSettings()
+    }
+    setEditorTarget(null)
+  }
+
+  const rowSummaryLabel = (s: AlertSetting) => {
+    if (s.sensor_id == null) return "농장 전체 (공통)"
+    if (s.sensor?.name)
+      return `${s.sensor.name} (${s.sensor.sensor_type})`
+    return "센서 선택 필요"
+  }
+
+  const isEditingRow = (setting: AlertSetting) => {
+    if (editorTarget?.mode === "new" && !setting.id) return true
+    if (editorTarget?.mode === "edit" && setting.id === editorTarget.id)
+      return true
+    return false
   }
 
   const handleSave = async (setting: AlertSetting) => {
@@ -123,6 +167,7 @@ export const AlertSettingsCard: React.FC<AlertSettingsCardProps> = ({
         throw new Error(data.error || "저장에 실패했습니다.")
       }
       setSuccess("알림 설정이 저장되었습니다.")
+      setEditorTarget(null)
       fetchSettings()
     } catch (err: any) {
       setError(err.message)
@@ -131,10 +176,10 @@ export const AlertSettingsCard: React.FC<AlertSettingsCardProps> = ({
 
   const handleDelete = async (id?: string, index?: number) => {
     if (!id) {
-      // 아직 저장되지 않은 행 삭제
       const newSettings = [...settings]
       newSettings.splice(index!, 1)
       setSettings(newSettings)
+      if (editorTarget?.mode === "new") setEditorTarget(null)
       return
     }
 
@@ -145,6 +190,9 @@ export const AlertSettingsCard: React.FC<AlertSettingsCardProps> = ({
         method: "DELETE",
       })
       if (!res.ok) throw new Error("삭제에 실패했습니다.")
+      if (editorTarget?.mode === "edit" && editorTarget.id === id) {
+        setEditorTarget(null)
+      }
       setSuccess("알림 설정이 삭제되었습니다.")
       fetchSettings()
     } catch (err: any) {
@@ -208,113 +256,189 @@ export const AlertSettingsCard: React.FC<AlertSettingsCardProps> = ({
         </div>
       ) : settings.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
-          설정된 알림이 없습니다. '설정 추가' 버튼을 눌러보세요.
+          설정된 알림이 없습니다. 설정 추가 버튼을 눌러보세요.
         </div>
       ) : (
-        <div className="space-y-4">
-          {settings.map((setting, index) => (
-            <div
-              key={setting.id || `new-${index}`}
-              className="p-4 rounded-lg border bg-background/50 space-y-4"
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                <div className="space-y-2">
-                  <Label>센서 선택</Label>
-                  <Select
-                    value={setting.sensor_id || "all"}
-                    onValueChange={(val) =>
-                      updateLocalSetting(index, "sensor_id", val === "all" ? null : val)
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="센서 선택" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">농장 전체 (공통)</SelectItem>
-                      {availableSensors.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name} ({s.sensor_type})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+        <div className="space-y-3">
+          {settings.map((setting, index) =>
+            isEditingRow(setting) ? (
+              <div
+                key={setting.id || `new-${index}`}
+                className="space-y-4 rounded-lg border-2 border-primary/25 bg-background/50 p-4"
+              >
+                <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  <div className="space-y-2">
+                    <Label>센서 선택</Label>
+                    <Select
+                      value={setting.sensor_id || "all"}
+                      onValueChange={(val) =>
+                        updateLocalSetting(
+                          index,
+                          "sensor_id",
+                          val === "all" ? null : val,
+                        )
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="센서 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">농장 전체 (공통)</SelectItem>
+                        {availableSensors.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name} ({s.sensor_type})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label>하한값 (Min)</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    placeholder="미설정"
-                    value={setting.min_value ?? ""}
-                    onChange={(e) =>
-                      updateLocalSetting(
-                        index,
-                        "min_value",
-                        e.target.value === "" ? null : parseFloat(e.target.value)
-                      )
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>상한값 (Max)</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    placeholder="미설정"
-                    value={setting.max_value ?? ""}
-                    onChange={(e) =>
-                      updateLocalSetting(
-                        index,
-                        "max_value",
-                        e.target.value === "" ? null : parseFloat(e.target.value)
-                      )
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 justify-end">
-                  <div className="flex items-center gap-2 mr-4">
-                    <Label className="text-xs">활성화</Label>
-                    <Switch
-                      checked={setting.is_active}
-                      onCheckedChange={(val) => updateLocalSetting(index, "is_active", val)}
+                  <div className="space-y-2">
+                    <Label>하한값 (Min)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="미설정"
+                      value={setting.min_value ?? ""}
+                      onChange={(e) =>
+                        updateLocalSetting(
+                          index,
+                          "min_value",
+                          e.target.value === "" ? null : parseFloat(e.target.value),
+                        )
+                      }
                     />
                   </div>
+
+                  <div className="space-y-2">
+                    <Label>상한값 (Max)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="미설정"
+                      value={setting.max_value ?? ""}
+                      onChange={(e) =>
+                        updateLocalSetting(
+                          index,
+                          "max_value",
+                          e.target.value === "" ? null : parseFloat(e.target.value),
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <div className="mr-2 flex items-center gap-2">
+                      <Label className="text-xs">활성화</Label>
+                      <Switch
+                        checked={setting.is_active}
+                        onCheckedChange={(val) =>
+                          updateLocalSetting(index, "is_active", val)
+                        }
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={cancelEditor}
+                    >
+                      취소
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleSave(setting)}
+                      title="저장"
+                    >
+                      <Save className="size-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="text-destructive hover:bg-destructive/10"
+                      onClick={() => handleDelete(setting.id, index)}
+                      title="삭제"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>알림 이메일 (선택)</Label>
+                    <Input
+                      type="email"
+                      placeholder="example@email.com"
+                      value={setting.notify_email || ""}
+                      onChange={(e) =>
+                        updateLocalSetting(index, "notify_email", e.target.value)
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div
+                key={setting.id || `new-${index}`}
+                className="flex flex-col gap-3 rounded-lg border border-border/80 bg-background/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0 flex-1 space-y-1">
+                  <p className="text-sm font-medium text-foreground">
+                    {rowSummaryLabel(setting)}
+                  </p>
+                  <p className="text-sm text-muted-foreground tabular-nums">
+                    하한 {setting.min_value ?? "—"} ~ 상한 {setting.max_value ?? "—"}
+                    {" · "}
+                    {setting.is_active ? "활성" : "비활성"}
+                    {setting.notify_email
+                      ? ` · ${setting.notify_email}`
+                      : " · 이메일 없음"}
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  {setting.id ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1"
+                      onClick={() =>
+                        setEditorTarget({ mode: "edit", id: setting.id! })
+                      }
+                    >
+                      <Pencil className="size-3.5" aria-hidden />
+                      편집
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1"
+                      onClick={() => setEditorTarget({ mode: "new" })}
+                    >
+                      <Pencil className="size-3.5" aria-hidden />
+                      계속 작성
+                    </Button>
+                  )}
                   <Button
+                    type="button"
                     variant="outline"
-                    size="icon"
-                    onClick={() => handleSave(setting)}
-                    title="저장"
-                  >
-                    <Save className="size-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
+                    size="sm"
                     className="text-destructive hover:bg-destructive/10"
                     onClick={() => handleDelete(setting.id, index)}
-                    title="삭제"
                   >
-                    <Trash2 className="size-4" />
+                    <Trash2 className="size-3.5" aria-hidden />
+                    삭제
                   </Button>
                 </div>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>알림 이메일 (선택)</Label>
-                  <Input
-                    type="email"
-                    placeholder="example@email.com"
-                    value={setting.notify_email || ""}
-                    onChange={(e) => updateLocalSetting(index, "notify_email", e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
+            ),
+          )}
         </div>
       )}
       </div>

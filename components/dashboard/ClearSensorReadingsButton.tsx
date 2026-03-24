@@ -26,7 +26,7 @@ type ClearSensorReadingsButtonProps = {
 }
 
 /**
- * Supabase `sensor_readings` 삭제를 요청하는 버튼. 확인 후 API `POST /api/sensor-readings/clear` 호출.
+ * 센서 측정값·알림 로그·액추에이터 제어 기록 삭제를 요청하는 버튼. 확인 후 `POST /api/sensor-readings/clear` 호출.
  */
 export const ClearSensorReadingsButton: React.FC<ClearSensorReadingsButtonProps> = ({
   farmId,
@@ -55,6 +55,8 @@ export const ClearSensorReadingsButton: React.FC<ClearSensorReadingsButtonProps>
         error?: string
         details?: string
         deletedCount?: number
+        alertLogsDeletedCount?: number
+        actuatorCommandLogsDeletedCount?: number
         message?: string
       }
 
@@ -109,8 +111,8 @@ export const ClearSensorReadingsButton: React.FC<ClearSensorReadingsButtonProps>
 
   const scopeLabel =
     farmId != null && farmId !== ""
-      ? "선택한 농장에 연결된 센서 데이터와 알림 로그를"
-      : "내 계정 농장에 속한 센서 데이터와 알림 로그를"
+      ? "선택한 농장에 연결된 센서 데이터·알림 로그·제어 기록을"
+      : "내 계정 농장에 속한 센서 데이터·알림 로그·제어 기록을"
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>

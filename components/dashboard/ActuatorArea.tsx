@@ -341,7 +341,7 @@ export const ActuatorArea: React.FC = () => {
                 <TableBody>
                   {commandLogs.map((row) => (
                     <TableRow key={row.id}>
-                      <TableCell className="whitespace-nowrap text-[1.125rem] tabular-nums leading-snug text-muted-foreground">
+                      <TableCell className="whitespace-nowrap text-[0.9rem] tabular-nums leading-snug text-muted-foreground">
                         {new Date(row.created_at).toLocaleString("ko-KR", {
                           month: "2-digit",
                           day: "2-digit",
@@ -358,7 +358,7 @@ export const ActuatorArea: React.FC = () => {
                         {row.payload}
                       </TableCell>
                       <TableCell
-                        className="max-w-[12rem] truncate text-[1.125rem] leading-snug text-muted-foreground"
+                        className="max-w-[12rem] truncate text-[0.9rem] leading-snug text-muted-foreground"
                         title={row.topic}
                       >
                         {row.topic}

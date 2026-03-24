@@ -45,8 +45,9 @@ type FarmActuatorCommandLogsDbTableProps = {
   farmId: string | null
 }
 
-/** 알림 이력·센서 표와 동일한 회색 본문 */
-const mutedRowTextClass = "text-sm tabular-nums text-muted-foreground"
+/** 알림 이력·센서 표와 동일한 회색 본문 스타일(text-sm·tabular-nums·muted) */
+const mutedRowTextClass =
+  "text-sm tabular-nums text-muted-foreground"
 
 const shortUuid = (id: string) => (id.length > 10 ? `${id.slice(0, 8)}…` : id)
 
@@ -337,10 +338,14 @@ export const FarmActuatorCommandLogsDbTable: React.FC<
                     onCheckedChange={() => toggleRowId(r.id)}
                   />
                 </TableCell>
-                <TableCell className="whitespace-nowrap align-top text-right text-sm tabular-nums text-muted-foreground">
+                <TableCell
+                  className={`whitespace-nowrap align-top text-right ${mutedRowTextClass}`}
+                >
                   {(offset + idx + 1).toLocaleString("ko-KR")}
                 </TableCell>
-                <TableCell className="whitespace-nowrap align-top text-sm tabular-nums text-muted-foreground">
+                <TableCell
+                  className={`whitespace-nowrap align-top ${mutedRowTextClass}`}
+                >
                   {new Date(r.created_at).toLocaleString("ko-KR", {
                     dateStyle: "short",
                     timeStyle: "medium",
