@@ -1,7 +1,7 @@
 import { generateText } from "ai"
 import { NextResponse } from "next/server"
 
-import { getGeminiModel } from "@/lib/ai/gemini"
+import { getGeminiModel, normalizeGeminiErrorMessage } from "@/lib/ai/gemini"
 import { isRequireUserSuccess, requireUser } from "@/lib/api/server"
 
 export const dynamic = "force-dynamic"
@@ -152,6 +152,10 @@ export async function POST(request: Request) {
   if (sensorIds.length === 0) {
     return NextResponse.json({
       ok: true,
+      farmId,
+      sensorCount: 0,
+      readingsCount: 0,
+      thresholdExceededTotal: 0,
       summary:
         "오늘은 연결된 센서 데이터가 없어 요약을 생성하지 못했습니다. 센서 연결 상태를 확인해 주세요.",
       stats: [],
@@ -180,40 +184,64 @@ export async function POST(request: Request) {
   const thresholdExceededTotal = stats.reduce((acc, s) => acc + s.thresholdExceededCount, 0)
   const readingsCount = readingRows.length
 
+  const topExceeded = [...stats].sort(
+    (a, b) => b.thresholdExceededCount - a.thresholdExceededCount,
+  )[0]
+  const topExceededSensorType = topExceeded?.sensorType ?? null
+  const topExceededCount = topExceeded?.thresholdExceededCount ?? 0
+
   const context = [
+    "작물: 딸기",
     `농장명: ${farm.name}`,
     `일자(KST): ${label}`,
     `총 측정 건수: ${readingsCount}`,
     `임계치 초과 총 건수: ${thresholdExceededTotal}`,
     `센서별 통계(JSON): ${JSON.stringify(stats)}`,
     "임계치 기준: temperature>30, humidity>85, ec>2.5, ph<6 또는 ph>7.5",
+    `임계치 초과 TOP 센서: ${topExceededSensorType ?? "없음"} (건수: ${topExceededCount})`,
+    "출력 마지막 문장은 반드시 '내일 점검 우선순위: <TOP 센서명> — 딸기 액션 아이템: <아이템1>, <아이템2>' 형식으로 작성하세요.",
   ].join("\n")
 
   try {
     const result = await generateText({
       model: getGeminiModel(),
-      temperature: 0.2,
-      maxOutputTokens: 500,
-      prompt: [
-        "당신은 스마트팜 운영 분석가입니다.",
-        "아래 컨텍스트를 기반으로 한국어로만 일일 요약을 작성하세요.",
-        "반드시 2~4문장으로 작성하고, 마지막 문장에는 내일 점검할 우선순위 1가지를 제시하세요.",
-        "",
-        context,
-      ].join("\n"),
+      temperature: 0.3,
+      maxOutputTokens: 1024,
+      prompt: `당신은 딸기 스마트팜 운영 전문가입니다. 아래 데이터를 분석하여 농장주가 지금 즉시 해야 할 일을 중심으로 2~3문장으로 짧고 명확하게 요약해 주세요.
+
+### 분석 지침:
+- 현재 센서 상태에서 가장 문제가 되는 부분(${topExceededSensorType ?? "없음"})을 먼저 언급하세요.
+- 딸기 생육을 위해 지금 바로 조치해야 할 사항(액션 아이템)을 구체적으로 제시하세요.
+- 불필요한 인사말은 생략하고 핵심만 전달하세요.
+- **중요: 답변을 중간에 끊지 말고 반드시 마침표(.)로 끝나는 완성된 문장으로 작성하세요.**
+- 마지막 문장 형식: "내일 점검 우선순위: [센서명] — 딸기 액션 아이템: [조치1], [조치2]"
+
+### 농장 데이터:
+${context}`,
     })
+
+    const summaryText = result.text.trim()
+
+    if (process.env.NODE_ENV === "development") {
+      // eslint-disable-next-line no-console
+      console.log("[AI Summary Debug]:", {
+        finishReason: result.finishReason,
+        textLength: summaryText.length,
+        fullText: summaryText,
+      })
+    }
 
     return NextResponse.json({
       ok: true,
       farmName: farm.name,
       dateKst: label,
-      summary: result.text,
+      summary: summaryText,
       stats,
       readingsCount,
       thresholdExceededTotal,
     })
   } catch (e) {
-    const message = e instanceof Error ? e.message : "AI 요약 생성 중 오류가 발생했습니다."
+    const message = normalizeGeminiErrorMessage(e)
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

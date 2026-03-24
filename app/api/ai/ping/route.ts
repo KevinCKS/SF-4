@@ -9,6 +9,7 @@ import {
   getDefaultGeminiModelName,
   getGeminiModel,
   hasGeminiApiKey,
+  normalizeGeminiErrorMessage,
 } from "@/lib/ai/gemini"
 
 export const dynamic = "force-dynamic"
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
       text: result.text,
     })
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Gemini 호출 중 오류가 발생했습니다."
+    const message = normalizeGeminiErrorMessage(e)
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
