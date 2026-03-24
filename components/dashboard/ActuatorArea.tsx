@@ -18,6 +18,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  DASHBOARD_CARD_DEPTH_CLASS,
+  SENSOR_SECTION_SURFACE_CLASS,
+} from "@/components/dashboard/sensorSectionSurface"
 import { cn } from "@/lib/utils"
 import {
   AlertCircle,
@@ -216,7 +220,7 @@ export const ActuatorArea: React.FC = () => {
     return (
       <Card
         key={a.key}
-        className="border-border/80 bg-card/85 shadow-md shadow-black/25 ring-1 ring-white/10 backdrop-blur-md"
+        className={cn(DASHBOARD_CARD_DEPTH_CLASS, "overflow-hidden")}
       >
         <CardHeader className="px-4 py-3">
           <div className="flex items-start justify-between gap-3">
@@ -302,7 +306,7 @@ export const ActuatorArea: React.FC = () => {
       </div>
 
       {selectedFarmId ? (
-        <div className="rounded-xl border border-border/80 bg-card/85 p-4 shadow-md shadow-black/25 ring-1 ring-white/10 backdrop-blur-md sm:p-5">
+        <div className={SENSOR_SECTION_SURFACE_CLASS}>
           <div className="mb-3 flex items-center gap-2 text-base font-semibold tracking-tight">
             <History className="size-4 shrink-0 text-primary" aria-hidden />
             최근 제어 이력

@@ -30,6 +30,7 @@ import { badgeVariants } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getMqttTopicConfig, getSubscribeTopicsFromConfig } from "@/lib/mqtt/topicConfig"
 import { isAllowedMqttTopic } from "@/lib/mqtt/topics"
+import { DASHBOARD_CARD_DEPTH_CLASS } from "@/components/dashboard/sensorSectionSurface"
 import { cn } from "@/lib/utils"
 import {
   Antenna,
@@ -253,7 +254,7 @@ const DashboardPage: React.FC = () => {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2 lg:gap-8 xl:gap-10">
-        <Card className="border-border/80 bg-card/90 shadow-lg shadow-black/25 ring-1 ring-white/10 backdrop-blur-md">
+        <Card className={cn(DASHBOARD_CARD_DEPTH_CLASS, "overflow-hidden")}>
           <CardHeader className="pb-3 pt-4">
             <CardTitle className="p-0 leading-none">
               <span className={DASHBOARD_SECTION_TITLE_PILL_CLASS}>
@@ -267,7 +268,7 @@ const DashboardPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-border/80 bg-card/90 shadow-lg shadow-black/25 ring-1 ring-white/10 backdrop-blur-md">
+        <Card className={cn(DASHBOARD_CARD_DEPTH_CLASS, "overflow-hidden")}>
           <CardHeader className="pb-3 pt-4">
             <CardTitle className="p-0 leading-none">
               <span className={DASHBOARD_SECTION_TITLE_PILL_CLASS}>

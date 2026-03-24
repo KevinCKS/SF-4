@@ -1,13 +1,13 @@
 "use client"
 
 import * as React from "react"
+import { toast } from "sonner"
 import {
   Plus,
   Trash2,
   Save,
   Pencil,
   AlertCircle,
-  CheckCircle2,
   Loader2,
   Settings2,
 } from "lucide-react"
@@ -62,7 +62,6 @@ export const AlertSettingsCard: React.FC<AlertSettingsCardProps> = ({
   const [editorTarget, setEditorTarget] = React.useState<EditorTarget>(null)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
-  const [success, setSuccess] = React.useState<string | null>(null)
 
   // 센서 목록 (농장 선택 시 로드)
   const [availableSensors, setAvailableSensors] = React.useState<any[]>([])
@@ -155,7 +154,6 @@ export const AlertSettingsCard: React.FC<AlertSettingsCardProps> = ({
 
   const handleSave = async (setting: AlertSetting) => {
     setError(null)
-    setSuccess(null)
     try {
       const res = await fetch("/api/alerts/settings", {
         method: "POST",
@@ -166,7 +164,7 @@ export const AlertSettingsCard: React.FC<AlertSettingsCardProps> = ({
         const data = await res.json()
         throw new Error(data.error || "저장에 실패했습니다.")
       }
-      setSuccess("알림 설정이 저장되었습니다.")
+      toast.success("알림 설정이 저장되었습니다.", { duration: 3500 })
       setEditorTarget(null)
       fetchSettings()
     } catch (err: any) {
@@ -193,7 +191,7 @@ export const AlertSettingsCard: React.FC<AlertSettingsCardProps> = ({
       if (editorTarget?.mode === "edit" && editorTarget.id === id) {
         setEditorTarget(null)
       }
-      setSuccess("알림 설정이 삭제되었습니다.")
+      toast.success("알림 설정이 삭제되었습니다.", { duration: 3500 })
       fetchSettings()
     } catch (err: any) {
       setError(err.message)
@@ -235,18 +233,10 @@ export const AlertSettingsCard: React.FC<AlertSettingsCardProps> = ({
       <div className="mt-4 space-y-4">
 
       {error ? (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="w-full max-w-md">
           <AlertCircle className="size-4" />
           <AlertTitle>오류</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
-
-      {success ? (
-        <Alert className="border-green-500/50 bg-green-500/10 text-green-600 dark:text-green-400">
-          <CheckCircle2 className="size-4" />
-          <AlertTitle>성공</AlertTitle>
-          <AlertDescription>{success}</AlertDescription>
         </Alert>
       ) : null}
 

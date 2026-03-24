@@ -21,7 +21,10 @@ import {
 } from "@/components/ui/select"
 
 import { AlertSettingsCard } from "@/components/dashboard/AlertSettingsCard"
-import { SENSOR_SECTION_SURFACE_CLASS } from "@/components/dashboard/sensorSectionSurface"
+import {
+  DASHBOARD_CARD_DEPTH_CLASS,
+  SENSOR_SECTION_SURFACE_CLASS,
+} from "@/components/dashboard/sensorSectionSurface"
 import { useMqttTopicConfig } from "@/components/dashboard/useMqttTopicConfig"
 import { useDashboardFarm } from "@/components/dashboard/DashboardFarmContext"
 import { useMqttConnection } from "@/components/dashboard/useMqttConnection"
@@ -30,6 +33,7 @@ import {
   Activity,
   AlertCircle,
   Antenna,
+  ArrowRight,
   Bot,
   Clock,
   Filter,
@@ -408,7 +412,10 @@ const SensorArea: React.FC = () => {
     return (
       <div
         key={s.key}
-        className="[container-type:inline-size] overflow-hidden rounded-xl border border-border/80 bg-card/85 p-4 shadow-md shadow-black/25 ring-1 ring-white/10 backdrop-blur-md sm:p-5"
+        className={cn(
+          DASHBOARD_CARD_DEPTH_CLASS,
+          "[container-type:inline-size] overflow-hidden p-4 sm:p-5",
+        )}
       >
         <div className="flex items-center gap-2">
           <SensorIcon
@@ -525,7 +532,7 @@ const SensorArea: React.FC = () => {
     return (
       <div
         key={s.key}
-        className="rounded-xl border border-border/80 bg-card/85 p-4 shadow-md shadow-black/25 ring-1 ring-white/10 backdrop-blur-md"
+        className={cn(DASHBOARD_CARD_DEPTH_CLASS, "p-4")}
       >
         <p className="mb-2 flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
           <LineChartIcon
@@ -637,69 +644,75 @@ const SensorArea: React.FC = () => {
       ) : null}
 
       {/* 게이지 값 → 표시 범위 → 추이 차트 → 알림 임계치 → AI 요약 */}
-      <div className="space-y-5">
+      <div className="flex flex-col">
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           {SENSOR_DEFS.map((s) => renderGaugeCard(s))}
         </div>
 
-        <div className={SENSOR_SECTION_SURFACE_CLASS}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <Label className="flex min-w-0 items-center gap-2 text-base font-semibold tracking-tight text-foreground">
+        <div
+          className={cn(
+            SENSOR_SECTION_SURFACE_CLASS,
+            "mt-8 py-2.5 sm:mt-10 sm:py-3",
+          )}
+        >
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-2 sm:gap-x-3">
+            <Label className="flex min-w-0 shrink-0 items-center gap-2 text-base font-semibold tracking-tight text-foreground">
               <Filter className="size-4 shrink-0 text-primary" aria-hidden />
               차트·게이지 표시 범위
             </Label>
-            <p className="text-xs text-muted-foreground sm:text-right">
-              시간 창을 먼저 적용한 뒤, 그 안에서 최근 N개만 표시합니다.
-            </p>
-          </div>
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-            <div className="min-w-[12rem] sm:max-w-[14rem]">
-              <Select
-                value={String(minutesToShow)}
-                onValueChange={(v) => setMinutesToShow(Number(v))}
-              >
-                <SelectTrigger className="h-9 min-h-9 gap-2 text-sm">
-                  <Clock className="size-3.5 shrink-0 opacity-70" aria-hidden />
-                  <SelectValue placeholder="최근 N분" />
-                </SelectTrigger>
-                <SelectContent className="text-sm">
-                  <SelectItem value="5">최근 5분</SelectItem>
-                  <SelectItem value="10">최근 10분</SelectItem>
-                  <SelectItem value="20">최근 20분</SelectItem>
-                  <SelectItem value="30">최근 30분</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-[12rem] sm:max-w-[14rem]">
-              <Select
-                value={String(pointsToShow)}
-                onValueChange={(v) => setPointsToShow(Number(v))}
-              >
-                <SelectTrigger className="h-9 min-h-9 gap-2 text-sm">
-                  <ListOrdered
-                    className="size-3.5 shrink-0 opacity-70"
-                    aria-hidden
-                  />
-                  <SelectValue placeholder="최근 N개" />
-                </SelectTrigger>
-                <SelectContent className="text-sm">
-                  <SelectItem value="30">최근 30개</SelectItem>
-                  <SelectItem value="60">최근 60개</SelectItem>
-                  <SelectItem value="80">최근 80개</SelectItem>
-                  <SelectItem value="120">최근 120개</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-2 sm:ml-auto sm:min-w-0 sm:flex-none sm:justify-end">
+              <div className="min-w-[9.5rem] max-w-[14rem] flex-1 sm:flex-initial">
+                <Select
+                  value={String(minutesToShow)}
+                  onValueChange={(v) => setMinutesToShow(Number(v))}
+                >
+                  <SelectTrigger className="h-8 min-h-8 w-full gap-2 text-sm">
+                    <Clock className="size-3.5 shrink-0 opacity-70" aria-hidden />
+                    <SelectValue placeholder="최근 N분" />
+                  </SelectTrigger>
+                  <SelectContent className="text-sm">
+                    <SelectItem value="5">최근 5분</SelectItem>
+                    <SelectItem value="10">최근 10분</SelectItem>
+                    <SelectItem value="20">최근 20분</SelectItem>
+                    <SelectItem value="30">최근 30분</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <ArrowRight
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <div className="min-w-[9.5rem] max-w-[14rem] flex-1 sm:flex-initial">
+                <Select
+                  value={String(pointsToShow)}
+                  onValueChange={(v) => setPointsToShow(Number(v))}
+                >
+                  <SelectTrigger className="h-8 min-h-8 w-full gap-2 text-sm">
+                    <ListOrdered
+                      className="size-3.5 shrink-0 opacity-70"
+                      aria-hidden
+                    />
+                    <SelectValue placeholder="최근 N개" />
+                  </SelectTrigger>
+                  <SelectContent className="text-sm">
+                    <SelectItem value="30">최근 30개</SelectItem>
+                    <SelectItem value="60">최근 60개</SelectItem>
+                    <SelectItem value="80">최근 80개</SelectItem>
+                    <SelectItem value="120">최근 120개</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="mt-5 grid gap-5 md:grid-cols-2">
           {SENSOR_DEFS.map((s) => renderMiniChart(s))}
         </div>
 
-        <AlertSettingsCard />
+        <AlertSettingsCard className="mt-5" />
 
-        <div className={SENSOR_SECTION_SURFACE_CLASS}>
+        <div className={cn(SENSOR_SECTION_SURFACE_CLASS, "mt-5")}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 space-y-1">
               <p className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
