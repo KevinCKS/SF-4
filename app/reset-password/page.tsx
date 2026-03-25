@@ -54,8 +54,7 @@ const ResetPasswordPage: React.FC = () => {
 
   const {
     handleSubmit,
-    control,
-    formState: { isSubmitting },
+    formState: { errors, isSubmitting },
     register,
   } = useForm<ResetFormValues>({
     resolver: zodResolver(resetSchema),
@@ -137,7 +136,9 @@ const ResetPasswordPage: React.FC = () => {
                   aria-label="새 비밀번호"
                   {...register("password")}
                 />
-                <FieldError name="password" control={control} />
+                {errors.password?.message ? (
+                  <FieldError>{errors.password.message}</FieldError>
+                ) : null}
               </Field>
 
               <Field>
@@ -152,7 +153,9 @@ const ResetPasswordPage: React.FC = () => {
                   aria-label="새 비밀번호 확인"
                   {...register("confirmPassword")}
                 />
-                <FieldError name="confirmPassword" control={control} />
+                {errors.confirmPassword?.message ? (
+                  <FieldError>{errors.confirmPassword.message}</FieldError>
+                ) : null}
               </Field>
             </FieldGroup>
 

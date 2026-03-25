@@ -5,8 +5,8 @@ import {
   requireUser,
   toInternalErrorResponse,
 } from "@/lib/api/server"
-import { farmUpsertBodySchema } from "@/lib/validators/farm"
-import type { CreateFarmInput, Farm } from "@/types/farm"
+import { farmUpsertBodySchema, toCreateFarmInput } from "@/lib/validators/farm"
+import type { Farm } from "@/types/farm"
 
 /**
  * 농장 목록/생성 API.
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const input = parsed.data as CreateFarmInput
+    const input = toCreateFarmInput(parsed.data)
 
     const { data, error } = await supabase
       .from("farms")

@@ -49,8 +49,7 @@ const LoginPage: React.FC = () => {
 
   const {
     handleSubmit,
-    control,
-    formState: { isSubmitting },
+    formState: { errors, isSubmitting },
     register,
     setValue,
   } = useForm<LoginFormValues>({
@@ -124,7 +123,9 @@ const LoginPage: React.FC = () => {
                   aria-label="이메일"
                   {...register("email")}
                 />
-                <FieldError name="email" control={control} />
+                {errors.email?.message ? (
+                  <FieldError>{errors.email.message}</FieldError>
+                ) : null}
               </Field>
 
               <Field>
@@ -137,7 +138,9 @@ const LoginPage: React.FC = () => {
                   aria-label="비밀번호"
                   {...register("password")}
                 />
-                <FieldError name="password" control={control} />
+                {errors.password?.message ? (
+                  <FieldError>{errors.password.message}</FieldError>
+                ) : null}
               </Field>
             </FieldGroup>
 

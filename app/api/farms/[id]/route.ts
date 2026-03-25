@@ -6,7 +6,7 @@ import {
   requireUser,
   toInternalErrorResponse,
 } from "@/lib/api/server"
-import { farmUpsertBodySchema } from "@/lib/validators/farm"
+import { farmUpsertBodySchema, toCreateFarmInput } from "@/lib/validators/farm"
 import type { Farm, UpdateFarmInput } from "@/types/farm"
 
 /**
@@ -107,7 +107,7 @@ export const PATCH = async (request: Request, context: RouteContext) => {
     )
   }
 
-  const input = parsed.data as UpdateFarmInput
+  const input: UpdateFarmInput = toCreateFarmInput(parsed.data)
 
   try {
     const auth = await requireUser()

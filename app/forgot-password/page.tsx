@@ -55,8 +55,7 @@ const ForgotPasswordPage: React.FC = () => {
 
   const {
     handleSubmit,
-    control,
-    formState: { isSubmitting },
+    formState: { errors, isSubmitting },
     register,
   } = useForm<ResetFormValues>({
     resolver: zodResolver(resetSchema),
@@ -144,7 +143,9 @@ const ForgotPasswordPage: React.FC = () => {
                   aria-label="이메일"
                   {...register("email")}
                 />
-                <FieldError name="email" control={control} />
+                {errors.email?.message ? (
+                  <FieldError>{errors.email.message}</FieldError>
+                ) : null}
               </Field>
             </FieldGroup>
 
